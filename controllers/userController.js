@@ -1,6 +1,7 @@
 const AsyncHandler = require('express-async-handler');
 const User = require('../model/usermodel')
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken')
 
 const registerUser = AsyncHandler(async (req, res) => {
     const { name, email, password, role } = req.body;
@@ -20,10 +21,19 @@ const registerUser = AsyncHandler(async (req, res) => {
        const salt = await bcrypt.genSalt(10);
        const hashedPass = await bcrypt.hash(password, salt);
         const createUser = await User.create({ name, email, password:hashedPass, role });
-        res.status(201).json(createUser); // Respond with the created user
+
+        res.json({
+            _id: createUser._id,
+            name: createUser.name,
+            email: createUser.email,
+            passsword: createUser.password,
+            role: createUser.role,
+            token: generateToken(createUser._id)
+
+        })
     } catch (error) {
         res.status(500);
-        throw new Error('User registration failed'); // You can include error.message for debugging
+        throw new Error('User registration failed'); 
     }
 });
 
@@ -46,9 +56,18 @@ const loginUser = AsyncHandler(async(req,res)=>{
     if(!passwordMatch){
         res.status(401);
         throw new Error('Invalid password');
+    }else{
+        res.json({
+            _id: findUser._id,
+            name: findUser.name,
+            email: findUser.email,
+            passsword: findUser.password,
+            role: findUser.role,
+            token: generateToken(findUser._id)
+
+        })
     }
     
-    res.json(findUser);
 });
 
 
@@ -63,6 +82,12 @@ const findMyProfile = AsyncHandler(async(req,res)=>{
     }
 })
 
+
+const generateToken = (id)=>{
+    return jwt.sign({id}, process.env.JWT_SECRET,{
+        expiresIn: '1d',
+    } )
+}
 
 
 
