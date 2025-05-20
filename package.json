@@ -9,6 +9,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "backend": "file:",
     "bcrypt": "^6.0.0",
     "colors": "^1.4.0",
     "dotenv": "^16.5.0",
