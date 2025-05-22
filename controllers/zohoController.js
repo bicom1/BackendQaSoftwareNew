@@ -1,58 +1,71 @@
-const zohoService = require('../services/zohoService');
+const zohoService = require("../services/zohoService");
+const axios = require('axios');
+require('dotenv').config();
 
-// Initiate Zoho OAuth flow
-const initiateAuth = (req, res) => {
-  res.redirect(zohoService.getAuthUrl());
-};
 
-// // Handle Zoho callback
-// const handleCallback = async (req, res) => {
+// const getAppointment = async (req, res) => {
+
+  
 //   try {
-//     const { code } = req.query;
-//     if (!code) {
-//       return res.status(400).json({ success: false, message: 'Authorization code missing' });
-//     }
-
-//     const tokens = await zohoService.getTokens(code);
-//     // Store refresh token securely (in DB or .env)
-//     res.status(200).json({ 
-//       success: true, 
-//       message: 'Zoho connected successfully', 
-//       refresh_token: tokens.refresh_token 
-//     });
+//     const { bookingId } = req.params;
+//     const appointment = await zohoService.getAppointment(bookingId);
+//     res.json(appointment);
 //   } catch (error) {
-//     console.error('Zoho callback error:', error);
-//     res.status(500).json({ 
-//       success: false, 
-//       message: 'Error during Zoho authentication',
-//       error: error.message 
+//     console.error('Error in getAppointment:', error);
+//     res.status(error.response?.status || 500).json({
+//       error: error.response?.data || error.message,
 //     });
 //   }
 // };
 
-// Get Zoho CRM contacts
-const getContacts = async (req, res) => {
+// const getAllAppointments = async (req, res) => {
+//   try {
+//     const { from_date, to_date, status, service_id } = req.query;
+//     const params = {};
+    
+//     if (from_date) params.from_date = from_date;
+//     if (to_date) params.to_date = to_date;
+//     if (status) params.status = status;
+//     if (service_id) params.service_id = service_id;
+
+//     const appointments = await zohoService.getAllAppointments(params);
+//     res.json(appointments);
+//   } catch (error) {
+//     console.error('Error in getAllAppointments:', error);
+//     res.status(error.response?.status || 500).json({
+//       error: error.response?.data || error.message,
+//     });
+//   }
+// };
+
+// module.exports = { getAllAppointments };
+
+// module.exports = {
+//   getAppointment,
+//   getAllAppointments
+// };
+
+
+const getAppointment = async (req, res) => {
+  const { bookingId } = req.params;
+
   try {
-    const contacts = await zohoService.makeApiRequest(
-      'GET', 
-      '/crm/v2/contacts'
-    );
-    res.status(200).json({ 
-      success: true, 
-      data: contacts 
+    const response = await axios.get(`https://www.zohoapis.com/bookings/v1/json/getappointment`, {
+      params: {
+        booking_id: bookingId
+      },
+      headers: {
+        Authorization: `Zoho-oauthtoken ${process.env.ZOHO_AUTH_TOKEN}`
+      }
     });
+
+    res.json(response.data);
   } catch (error) {
-    console.error('Zoho contacts error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch contacts',
-      error: error.message 
-    });
+    console.error('Zoho API error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch appointment details from Zoho' });
   }
 };
 
 module.exports = {
-  initiateAuth,
-  handleCallback,
-  getContacts
+  getAppointment
 };
