@@ -1,74 +1,87 @@
-const AsyncHandler = require('express-async-handler');
-const Bitrix24Service = require('../services/bitrix24Service');
-const User = require('../model/usermodel');
 
-const getAuthUrl = AsyncHandler(async (req, res) => {
-  const authUrl = `https://${process.env.BITRIX24_DOMAIN}/oauth/authorize/?client_id=${process.env.BITRIX24_CLIENT_ID}&redirect_uri=${process.env.BITRIX24_REDIRECT_URI}&response_type=code`;
-  res.json({ authUrl });
-});
+const axios = require('axios');
 
+const callBitrixApi = async (req, res) => {
+    const currentBitrixApiBaseUrl = process.env.BITRIX_API_BASE_URL;
 
-const handleCallback = AsyncHandler(async (req, res) => {
-  const { code } = req.query;
-  if (!code) {
-    res.status(400);
-    throw new Error('Authorization code missing');
-  }
+    if (!req.body || Object.keys(req.body).length === 0) {
+        console.warn("[Controller] req.body is undefined, empty, or not parsed. This shouldn't happen if client sends correct Content-Type and body, and express.json() works.".yellow);
+        return res.status(400).json({
+            success: false,
+            message: 'Request body is missing, empty, or not parsed correctly. Ensure Content-Type: application/json and a non-empty JSON body are sent.'
+        });
+    }
 
-  try {
-    const bitrix = new Bitrix24Service();
-    const tokens = await bitrix.getTokens(code);
+    const { method, params } = req.body;
 
+    if (!currentBitrixApiBaseUrl) {
+        console.error("[Controller] FATAL: BITRIX_API_BASE_URL is not set in .env file.".red);
+        return res.status(500).json({
+            success: false,
+            message: 'Server configuration error: Bitrix24 API base URL is not set.'
+        });
+    }
 
-    await User.findByIdAndUpdate(req.user._id, {
-      bitrix24: {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiresIn: tokens.expires_in,
-        domain: process.env.BITRIX24_DOMAIN
-      }
-    });
+    if (!method) {
+        return res.status(400).json({
+            success: false,
+            message: 'Bitrix24 API "method" not specified in request body.'
+        });
+    }
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Bitrix24 auth error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+    const bitrixApiUrl = `${currentBitrixApiBaseUrl.replace(/\/$/, '')}/${method}.json`;
 
+    try {
+        console.log(`[Controller] Attempting to call Bitrix24 API: ${bitrixApiUrl}`.blue);
+        console.log(`[Controller] With params:`, JSON.stringify(params || {}, null, 2).blue);
 
-const createLead = AsyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
-  
-  if (!user.bitrix24?.accessToken) {
-    res.status(401);
-    throw new Error('Bitrix24 not connected');
-  }
+        const bitrixResponse = await axios.post(bitrixApiUrl, params || {});
 
-  const bitrix = new Bitrix24Service(user.bitrix24.accessToken);
-  const result = await bitrix.createLead(req.body);  
-  
-  res.json(result);
-});
+        console.log('[Controller] Bitrix24 API Response Status:'.green, bitrixResponse.status);
 
+        if (bitrixResponse.data && bitrixResponse.data.error) {
+            console.error('[Controller] Bitrix24 API returned an error:'.red, bitrixResponse.data.error_description || bitrixResponse.data.error);
+            return res.status(400).json({
+                success: false,
+                message: `Bitrix24 API error for method ${method}: ${bitrixResponse.data.error_description || bitrixResponse.data.error}`,
+                bitrixError: bitrixResponse.data
+            });
+        }
 
-const getBitrixUser = AsyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
-  
-  if (!user.bitrix24?.accessToken) {
-    res.status(401);
-    throw new Error('Bitrix24 not connected');
-  }
+        res.status(200).json({
+            success: true,
+            message: `Successfully called Bitrix24 method: ${method}`,
+            bitrixResponse: bitrixResponse.data.result !== undefined ? bitrixResponse.data.result : bitrixResponse.data
+        });
 
-  const bitrix = new Bitrix24Service(user.bitrix24.accessToken);
-  const bitrixUser = await bitrix.getCurrentUser();
-  
-  res.json(bitrixUser);
-});
+    } catch (error) {
+        console.error('[Controller] Error during Bitrix24 API call:'.red, error.message);
+        if (error.response) {
+            console.error('Bitrix Error Data:'.red, JSON.stringify(error.response.data, null, 2));
+            console.error('Bitrix Error Status:'.red, error.response.status);
+            return res.status(error.response.status || 500).json({
+                success: false,
+                message: `Error calling Bitrix24 method ${method}: ${error.response.data.error_description || (error.response.data && error.response.data.error) || 'Unknown Bitrix24 server error'}`,
+                errorDetails: error.response.data
+            });
+        } else if (error.request) {
+            console.error('Bitrix Request Error (no response):'.red, error.request);
+            return res.status(502).json({
+                success: false,
+                message: 'No response received from Bitrix24 API.',
+                errorDetails: "The request was made but no response was received from Bitrix24."
+            });
+        } else {
+            console.error('General Request Setup Error:'.red, error.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Error in setting up the request to Bitrix24 API.',
+                errorDetails: error.message
+            });
+        }
+    }
+};
 
 module.exports = {
-  getAuthUrl,
-  handleCallback,
-  createLead,
-  getBitrixUser
+    callBitrixApi
 };
