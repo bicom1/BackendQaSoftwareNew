@@ -68,6 +68,8 @@ app.use((req, res, next) => {
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));
 app.use('/api/evaluations', require('./routes/evaluationRoutes'));
+app.use('/api/escalations', require('./routes/escalationRoutes'));
+
 
 app.get('/', (req, res) => {
   res.send('Bitrix24 API Caller Service is Running!');
