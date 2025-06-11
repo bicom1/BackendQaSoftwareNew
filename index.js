@@ -18,7 +18,7 @@ requiredEnvVars.forEach(varName => {
   }
 });
 
-// Redis client setup
+
 const redisClient = redis.createClient({
   url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
 });
@@ -31,7 +31,7 @@ redisClient.on('connect', () => {
   console.log('Redis connected successfully'.bgGreen);
 });
 
-// Database connections
+
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URL);
@@ -42,13 +42,13 @@ const connectDB = async () => {
   }
 };
 
-// Initialize Redis and DB
+
 (async () => {
   await redisClient.connect();
   await connectDB();
 })();
 
-// Middleware
+
 app.use(helmet());
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || '*'
@@ -56,7 +56,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Debug middleware
+
 app.use((req, res, next) => {
   console.log('--- GLOBAL DEBUG: Request Received ---'.magenta);
   console.log('Method:'.magenta, req.method);
@@ -75,7 +75,7 @@ app.get('/', (req, res) => {
   res.send('Bitrix24 API Caller Service is Running!');
 });
 
-// Error handling
+
 app.use((err, req, res, next) => {
   console.error("Unhandled Error:".red, err.stack);
   res.status(500).json({
@@ -84,7 +84,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Graceful shutdown
+
 process.on('SIGINT', async () => {
   await mongoose.connection.close();
   await redisClient.quit();

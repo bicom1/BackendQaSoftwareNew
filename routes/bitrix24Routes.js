@@ -15,3 +15,11 @@ router.get('/test', (req, res) => {
   });
 
 module.exports = router;
+
+
+// http://localhost:3001/api/bitrix24/crmleadlist?filter={"STATUS_ID":"NEW"}
+// http://localhost:3001/api/bitrix24/crmleadlist?filter={"STATUS_ID":"NEW"}
+// http://localhost:3001/api/bitrix24/crmleadlist?filter={"STATUS_ID":"NEW","SOURCE_ID":"WEB"}
+// http://localhost:3001/api/bitrix24/crmleadlist?filter={"STATUS_ID":"NEW"}&select=["ID","TITLE","STATUS_ID"]
+// http://localhost:3001/api/bitrix24/crmleadlist?order={"DATE_CREATE":"DESC"}&select=["ID","TITLE","DATE_CREATE"]
+

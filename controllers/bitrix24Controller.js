@@ -72,13 +72,19 @@ const callBitrixApi = async (req, res) => {
     }
 };
 
+
+
 const crmleadlist = async (req, res, next) => {
     try {
-        const { filter = {}, select = [], order = {} } = req.query;
+        const filter = req.query.filter ? JSON.parse(req.query.filter) : {};
+        const select = req.query.select ? JSON.parse(req.query.select) : [];
+        const order = req.query.order ? JSON.parse(req.query.order) : {};
+
         const bitrixUrl = `${process.env.BITRIX_API_BASE_URL}/crm.lead.list.json`;
-        
+
+        console.log('Calling Bitrix API:', bitrixUrl);
+
         const response = await axios.post(bitrixUrl, {
-            auth: process.env.BITRIX_AUTH_TOKEN,
             filter,
             select,
             order
@@ -89,9 +95,13 @@ const crmleadlist = async (req, res, next) => {
             data: response.data.result
         });
     } catch (error) {
-        next(error);
+        console.error('Bitrix API Error:', error?.response?.data || error.message);
+        res.status(500).json({ success: false, error: 'Failed to fetch CRM lead list.' });
     }
 };
+
+
+
 
 const getAllLeads = async (req, res) => {
     try {
@@ -121,6 +131,9 @@ const getAllLeads = async (req, res) => {
         });
     }
 };
+
+
+
 
 const getFilteredLeads = async (req, res) => {
     try {
