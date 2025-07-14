@@ -5,11 +5,19 @@ const usersSchema = new mongoose.Schema({
     type: String,
     required: [true, "Please provide an email"],
     unique: [true, "email already exists"],
+    lowercase: true,
+    trim: true
   },
   password: {
     type: String,
     required: [true, "Please provide a password!"],
-    unique: false,
+    minlength: 8,
+    select: false
+  },
+  
+  isVerified: {
+    type: Boolean,
+    default: false
   },
   name: {
     type: String,
@@ -21,4 +29,8 @@ const usersSchema = new mongoose.Schema({
     timestamps: true,
 });
 
+
+
 module.exports = mongoose.model("User", usersSchema);
+
+

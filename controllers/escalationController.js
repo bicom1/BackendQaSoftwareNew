@@ -25,6 +25,7 @@ const createEscalation = async (req, res) => {
   }
 };
 
+
 const createBulkEscalation = async (req, res) => {
   try {
     const escalation = req.body;
@@ -224,7 +225,7 @@ const deleteEscalation = async (req, res) => {
   }
 };
 
-// Health check for queue
+
 const getQueueStatus = async (req, res) => {
   try {
     const counts = await Promise.all([
@@ -234,7 +235,7 @@ const getQueueStatus = async (req, res) => {
       escalationQueue.getFailedCount()
     ]);
 
-    // For Redis v4+, use isOpen instead of connected
+    
     const redisStatus = redisClient.isOpen ? 'connected' : 'disconnected';
 
     res.status(200).json({
@@ -255,6 +256,36 @@ const getQueueStatus = async (req, res) => {
   }
 };
 
+
+const getescalationsbyfilter = async (req, res) => {
+  try {
+    const { evaluatedBy, startDate, endDate, team } = req.query;
+
+    const filter = {};
+
+    if (evaluatedBy) {
+      filter.evaluatedBy = evaluatedBy;
+    }
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) filter.createdAt.$lte = new Date(endDate);
+    }
+
+    if (team) {
+      filter.team = team; 
+    }
+
+    const escalations = await Escalation.find(filter).sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: escalations });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error });
+  }
+};
+
+
 module.exports = {
   createEscalation,
   createBulkEscalation,
@@ -262,5 +293,6 @@ module.exports = {
   getEscalationById,
   updateEscalation,
   deleteEscalation,
-  getQueueStatus
+  getQueueStatus,
+  getescalationsbyfilter
 };

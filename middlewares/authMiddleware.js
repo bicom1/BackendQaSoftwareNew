@@ -1,22 +1,30 @@
-   const jwt = require('jsonwebtoken');
-   const AsyncHandler = require('express-async-handler')
-   const user = require('../models/usermodel');
+const jwt = require('jsonwebtoken');
+const AsyncHandler = require('express-async-handler');
+const User = require('../models/usermodel');
 
-   const authMiddleware = AsyncHandler(async(req,res,next)=>{
-    let token;
-    if(req.headers.authorization && req.headers.authorization.startsWith('Bearer ')){
-        try{
-            token = req.headers.authorization.split(' ')[1];
-           const decode =jwt.verify(token,process.env.JWT_SECRET);
-           req.user =await user.findById(decode.id);
-           next();
-           console.log(req.user)
-        }catch(error){
-            throw new Error('Wrong Token');
-        }
-    }else{
-        throw new Error('No Token Found');
+const authMiddleware = AsyncHandler(async (req, res, next) => {
+  let token;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.id).select('-password');
+
+      if (!req.user) {
+        res.status(401);
+        throw new Error('User not found');
+      }
+
+      next();
+    } catch (error) {
+      res.status(401);
+      throw new Error('Invalid or expired token');
     }
-   })
+  } else {
+    res.status(401);
+    throw new Error('No token provided');
+  }
+});
 
-   module.exports = authMiddleware;
+module.exports = authMiddleware;

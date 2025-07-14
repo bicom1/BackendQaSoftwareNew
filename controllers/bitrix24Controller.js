@@ -74,6 +74,8 @@ const callBitrixApi = async (req, res) => {
 
 
 
+
+
 const crmleadlist = async (req, res, next) => {
     try {
         const filter = req.query.filter ? JSON.parse(req.query.filter) : {};
@@ -107,15 +109,14 @@ const getAllLeads = async (req, res) => {
     try {
         const BITRIX_API_URL = `${process.env.BITRIX_API_BASE_URL}/crm.lead.list`;
         
-        // Call Bitrix24 API
+        
         const response = await axios.post(BITRIX_API_URL, {
             auth: process.env.BITRIX_AUTH_TOKEN,
-            // Optional: Add filters/select if needed
+           
             select: ["ID", "TITLE", "STATUS_ID", "NAME", "LAST_NAME"],
-            order: { "ID": "ASC" } // Sort by ID
+            order: { "ID": "ASC" } 
         });
-
-        // Return all leads
+ // Return all leads
         res.status(200).json({
             success: true,
             count: response.data.result.length,
@@ -134,24 +135,23 @@ const getAllLeads = async (req, res) => {
 
 
 
-
 const getFilteredLeads = async (req, res) => {
     try {
         const BITRIX_API_URL = `${process.env.BITRIX_API_BASE_URL}/crm.lead.list`;
         
-        // Extract filters/params from POST request body
+        
         const { 
-            filter = {},  // Default: empty filter (get all)
-            select = ["ID", "TITLE", "STATUS_ID"], // Default fields
-            order = { "ID": "ASC" } // Default sorting
+            filter = {}, 
+            select = ["ID", "TITLE", "STATUS_ID"],
+            order = { "ID": "ASC" } 
         } = req.body;
 
-        // Call Bitrix24 API with dynamic filters
+        
         const response = await axios.post(BITRIX_API_URL, {
             auth: process.env.BITRIX_AUTH_TOKEN,
-            filter,  // Applied filters
-            select,  // Selected fields
-            order    // Sorting
+            filter,  
+            select,  
+            order   
         });
 
         res.status(200).json({

@@ -1,5 +1,5 @@
 const express = require('express');
-const { createEscalation, createBulkEscalation, getEscalation, getEscalationById, getQueueStatus, updateEscalation, deleteEscalation } = require('../controllers/escalationController');
+const { createEscalation, createBulkEscalation, getEscalation, getEscalationById, getQueueStatus, updateEscalation, deleteEscalation, getescalationsbyfilter } = require('../controllers/escalationController');
 
 
 
@@ -11,7 +11,9 @@ router.post('/bulk', createBulkEscalation);
 router.get('/getescalations', getEscalation);
 router.get('/getescalationbyid/:id', getEscalationById);
 router.get('/queue/status', getQueueStatus);
-// router.put('/escalations/:id', updateEscalation);
-// router.delete('/escalations/:id', deleteEscalation); 
+router.put('/escalations/:id', updateEscalation);
+router.delete('/escalations/:id', deleteEscalation);
+router.get('/getescalationsbyfilter', getescalationsbyfilter);
+
 
 module.exports = router;

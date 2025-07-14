@@ -51,7 +51,8 @@ const connectDB = async () => {
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*'
+  origin: "http://localhost:5173", // Allow frontend origin
+  credentials: true                // Allow cookies/token headers
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -66,9 +67,19 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
+
+// bitrix
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));
+
+
 app.use('/api/evaluations', require('./routes/evaluationRoutes'));
 app.use('/api/escalations', require('./routes/escalationRoutes'));
+app.use('/api/marketing', require('./routes/marketingRoutes'));
+app.use('/api/teamlead', require('./routes/teamleadRoutes'));
+// app.use ('/api/agents', require('./routes/agentsRoutes'));
+
+
+
 
 
 app.get('/', (req, res) => {
