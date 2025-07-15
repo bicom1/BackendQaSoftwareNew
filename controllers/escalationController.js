@@ -12,9 +12,9 @@ const createEscalation = async (req, res) => {
       attempts: 3,
       backoff: { type: 'exponential', delay: 1000 }
     });
-    
+
     res.status(202).json({
-      message: 'Escalation queued',
+      message: 'Evaluation queued',
       jobId: job.id,
       queueStatus: {
         waiting: await escalationQueue.getWaitingCount()

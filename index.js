@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const redis = require('redis');
 const helmet = require('helmet');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -67,6 +68,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // bitrix
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));
