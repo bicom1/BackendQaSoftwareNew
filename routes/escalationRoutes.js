@@ -7,7 +7,8 @@ const {
   getQueueStatus,
   updateEscalation,
   deleteEscalation,
-  getescalationsbyfilter
+  getescalationsbyfilter,
+  totalescalationcounts
 } = require('../controllers/escalationController');
 const multer = require('multer');
 const path = require('path');
@@ -64,5 +65,7 @@ router.get('/queue/status', getQueueStatus);
 router.put('/:id', updateEscalation);
 router.delete('/:id', deleteEscalation);
 router.get('/getescalationsbyfilter', getescalationsbyfilter);
+router.get("/totalescalationcounts", totalescalationcounts);
+
 
 module.exports = router;

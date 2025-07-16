@@ -1,3 +1,4 @@
+const AsyncHandler = require('express-async-handler');
 const Escalation = require('../models/Escalation');
 const mongoose = require('mongoose');
 const redis = require('redis');
@@ -285,6 +286,11 @@ const getescalationsbyfilter = async (req, res) => {
   }
 };
 
+const totalescalationcounts = AsyncHandler(async(req,res)=>{
+  const count = await Escalation.countDocuments();
+  res.status(200).json({success:true,count})
+})
+
 
 module.exports = {
   createEscalation,
@@ -294,5 +300,6 @@ module.exports = {
   updateEscalation,
   deleteEscalation,
   getQueueStatus,
-  getescalationsbyfilter
+  getescalationsbyfilter,
+  totalescalationcounts
 };

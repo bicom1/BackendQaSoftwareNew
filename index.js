@@ -78,6 +78,8 @@ app.use('/api/evaluations', require('./routes/evaluationRoutes'));
 app.use('/api/escalations', require('./routes/escalationRoutes'));
 app.use('/api/marketing', require('./routes/marketingRoutes'));
 app.use('/api/teamlead', require('./routes/teamleadRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
+
 // app.use ('/api/agents', require('./routes/agentsRoutes'));
 
 

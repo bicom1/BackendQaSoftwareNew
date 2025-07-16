@@ -4,6 +4,8 @@ const redis = require('redis');
 const Queue = require('bull');
 const {redisClient} = require('../config/connection');
 const evaluationQueue = require('../queues/evaluationQueue');
+const AsyncHandler = require('express-async-handler');
+
 
 
 
@@ -257,6 +259,11 @@ const getQueueStatus = async (req, res) => {
   }
 };
 
+const totalevaluationcounts = AsyncHandler(async(req,res)=>{
+  const count = await Evaluation.countDocuments();
+  res.status(200).json({success:true,count})
+})
+
 module.exports = {
   createEvaluation,
   createBulkEvaluations,
@@ -265,5 +272,6 @@ module.exports = {
   updateEvaluation,
   deleteEvaluation,
   getQueueStatus,
+  totalevaluationcounts,
   evaluationQueue// Export for worker processes
 };

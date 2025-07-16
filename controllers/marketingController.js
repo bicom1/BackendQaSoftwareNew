@@ -1,6 +1,7 @@
 const userModel = require("../models/usermodel");
 const marketingModel = require("../models/Marketing");
 const marketingQueue = require("../queues/marketingQueue");
+const AsyncHandler = require('express-async-handler');
 
 exports.createMarketing = async (req, res) => {
   try {
@@ -255,3 +256,8 @@ exports.deleteMarketing = async (req, res) => {
       });
     }
   };
+
+  exports.totalmarketingcounts = AsyncHandler(async(req,res)=>{
+    const count = await marketingModel.countDocuments();
+    res.status(200).json({success:true,count})
+  })

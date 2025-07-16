@@ -1,5 +1,5 @@
 const express = require('express');
-const { createEvaluation, getEvaluations, getEvaluationById, updateEvaluation, deleteEvaluation, createBulkEvaluations, getQueueStatus } = require('../controllers/evaluationController');
+const { createEvaluation, getEvaluations, getEvaluationById, updateEvaluation, deleteEvaluation, createBulkEvaluations, getQueueStatus, totalevaluationcounts } = require('../controllers/evaluationController');
 
 const router = express.Router();
 
@@ -11,5 +11,7 @@ router.get('/getevaluationbyid/:id', getEvaluationById);
 router.get('/queue/status', getQueueStatus);
 router.put('/evaluations/:id', updateEvaluation);
 router.delete('/evaluations/:id', deleteEvaluation); 
+router.get("/totalevaluationcounts", totalevaluationcounts);
+
 
 module.exports = router;
