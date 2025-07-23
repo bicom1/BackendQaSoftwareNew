@@ -9,7 +9,15 @@ const authMiddleware = AsyncHandler(async (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select('-password');
+
+      // Use decoded._id if your JWT payload has "_id"
+      const userId = decoded.id || decoded._id;
+      if (!userId) {
+        res.status(401);
+        throw new Error('Invalid token payload');
+      }
+
+      req.user = await User.findById(userId).select('-password');
 
       if (!req.user) {
         res.status(401);
@@ -18,6 +26,7 @@ const authMiddleware = AsyncHandler(async (req, res, next) => {
 
       next();
     } catch (error) {
+      console.error('Auth Error:', error.message);
       res.status(401);
       throw new Error('Invalid or expired token');
     }
