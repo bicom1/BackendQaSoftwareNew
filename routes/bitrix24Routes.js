@@ -4,7 +4,7 @@ const {
   getLeads,
   getContacts,
   getDeals,
-  // getLeadById,
+  getLeadById,
   testRoute,
   searchLeads,
   getLeadByNumber,
@@ -13,8 +13,8 @@ const {
 router.get('/leads', getLeads);
 router.get('/contacts', getContacts);
 router.get('/deals', getDeals);
-// router.get('/leads/:id', getLeadById);
-router.get('/leads/:id', getLeadByNumber);
+router.get('/leads/:id', getLeadById);
+router.get('/user-leads/:id', getLeadByNumber);
 router.get('/search-leads', searchLeads); 
 router.get('/test', testRoute);
 
