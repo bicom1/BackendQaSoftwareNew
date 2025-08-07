@@ -1,54 +1,27 @@
 const express = require('express');
 const router = express.Router();
-// const { crmleadlist, getAllLeads, getFilteredLeads } = require('../controllers/bitrix24Controller');
-const { callBitrixApi } = require('../services/bitrixApi');
+const {
+  getLeads,
+  getContacts,
+  getDeals,
+  // getLeadById,
+  testRoute,
+  searchLeads,
+  getLeadByNumber,
+} = require('../controllers/bitrix24Controller');
 
-// Get all leads
-router.get('/leads', async (req, res) => {
-  try {
-    const leads = await callBitrixApi('crm.lead.list');
-    res.json(leads);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get('/leads', getLeads);
+router.get('/contacts', getContacts);
+router.get('/deals', getDeals);
+// router.get('/leads/:id', getLeadById);
+router.get('/leads/:id', getLeadByNumber);
+router.get('/search-leads', searchLeads); 
+router.get('/test', testRoute);
 
-// Get all contacts
-router.get('/contacts', async (req, res) => {
-  try {
-    const contacts = await callBitrixApi('crm.contact.list');
-    res.json(contacts);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+module.exports = router;
 
-// Get all deals
-router.get('/deals', async (req, res) => {
-  try {
-    const deals = await callBitrixApi('crm.deal.list');
-    res.json(deals);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-// Get lead by ID
-router.get('/leads/:id', async (req, res) => {
-  const { id } = req.params;
 
-  try {
-    const lead = await callBitrixApi('crm.lead.get', { id });
-    res.json(lead);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// router.post('/call-b24-api',callBitrixApi);
-// router.get('/crmleadlist', crmleadlist)
-// router.get('/leads', getAllLeads);
-// router.post('/getFilteredLeads', getFilteredLeads)
 
 router.get('/test', (req, res) => {
     res.send('Bitrix24 route is working!');
