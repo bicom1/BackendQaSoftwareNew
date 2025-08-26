@@ -12,22 +12,13 @@ const AsyncHandler = require('express-async-handler');
 
 const createEvaluation = async (req, res) => {
   try {
-    const job = await evaluationQueue.add(req.body, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1000 }
-    });
-    
-    res.status(202).json({
-      message: 'Evaluation queued',
-      jobId: job.id,
-      queueStatus: {
-        waiting: await evaluationQueue.getWaitingCount()
-      }
-    });
+    const evaluation = await Evaluation.create(req.body);
+    res.status(201).json({ message: "Evaluation saved", evaluation });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 const createBulkEvaluations = async (req, res) => {
   try {

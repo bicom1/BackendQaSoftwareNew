@@ -14,11 +14,6 @@ const usersSchema = new mongoose.Schema({
     minlength: 8,
     select: false
   },
-  
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
   name: {
     type: String,
   },

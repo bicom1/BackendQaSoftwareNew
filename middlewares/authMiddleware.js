@@ -10,8 +10,8 @@ const authMiddleware = AsyncHandler(async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Use decoded._id if your JWT payload has "_id"
-      const userId = decoded.id || decoded._id;
+      // Use only decoded.id since that's what you're signing with
+      const userId = decoded.id;
       if (!userId) {
         res.status(401);
         throw new Error('Invalid token payload');
