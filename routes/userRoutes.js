@@ -7,10 +7,12 @@ router.post('/register-user',registerUser)
 router.post('/login-user', loginUser)
 router.post('/forgot-password',forgotPassword);
 router.post('/reset-password', resetPassword);
-router.get('/my-profile', authMiddleware, findMyProfile)
-router.get('/getallusers', getAllUsers)
-router.get("/totalusercount", totalUserCount);
-router.get("/logout", logout);
+
+
+router.get('/my-profile',authMiddleware, findMyProfile)
+router.get('/getallusers',authMiddleware, getAllUsers)
+router.get("/totalusercount",authMiddleware, totalUserCount);
+router.get("/logout",authMiddleware, logout);
 
 
 module.exports = router;

@@ -59,13 +59,12 @@ const escalationSchema = new mongoose.Schema({
    
   },
   escSeverity: {
-    type: String,
-    required: [true, 'Escalation Severity is required'],
-    enum: {
-      values: ["Urgent Action required", "High", "Repeated"],
-      message: '{VALUE} is not a valid escalation severity.'
-    }
-  },
+  type: String,
+  required: [true, 'Escalation Severity is required'],
+  enum: ["Urgent Action required", "High", "Repeated"],
+  set: val => val.charAt(0).toUpperCase() + val.slice(1).toLowerCase() // capitalizes first letter
+},
+
   issueIden: {
     type: String,
     required: [true, 'Issue Identification is required'],

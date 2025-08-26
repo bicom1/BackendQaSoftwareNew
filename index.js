@@ -38,14 +38,19 @@ const connectDB = async () => {
 
 // Connect to DB + Redis, then start cron
 (async () => {
-  await redisClient.connect();
-  await connectDB();
+  try {
+    await redisClient.connect();
+    await connectDB();
 
-  // Initialize all cron jobs
-  const { initCronJobs } = require('./cron');
-  initCronJobs();
+    // Initialize all cron jobs
+    const { initCronJobs } = require('./cron');
+    initCronJobs();
 
-  console.log('✅ Cron jobs initialized'.yellow);
+    console.log('✅ Cron jobs initialized'.yellow);
+  } catch (error) {
+    console.error('❌ Initialization failed:'.red, error);
+    process.exit(1);
+  }
 })();
 
 // Middleware
@@ -78,45 +83,61 @@ app.use('/api/analytics', require('./routes/analyticsRoutes'));
 
 // Add cron management routes (consider protecting these in production)
 app.get('/api/cron/status', (req, res) => {
-  const { scheduledTasks } = require('./cron');
-  const status = {};
-  
-  Object.entries(scheduledTasks).forEach(([name, task]) => {
-    status[name] = {
-      running: task.getStatus() === 'started',
-      nextDates: task.nextDates(3) // Next 3 execution times
-    };
-  });
-  
-  res.json({ success: true, cronJobs: status });
+  try {
+    const { scheduledTasks } = require('./cron');
+    const status = {};
+    
+    Object.entries(scheduledTasks).forEach(([name, task]) => {
+      status[name] = {
+        running: task.getStatus() === 'started',
+        nextDates: task.nextDates(3) // Next 3 execution times
+      };
+    });
+    
+    res.json({ success: true, cronJobs: status });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
 });
 
 // For development/testing - manually trigger a job
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.BITRIX_API_BASE_URL ) {
   app.post('/api/cron/trigger/:job', async (req, res) => {
     const jobName = req.params.job;
     
     try {
       let result;
+      // IMPORTANT FIX: You need to destructure the function from the module
       switch(jobName) {
         case 'cleanup':
-          result = await require('./cron/jobs/cleanupMarketingData')();
+          const { cleanupMarketingData } = require('./cron/jobs/cleanupMarketingData');
+          result = await cleanupMarketingData();
           break;
         case 'reports':
-          result = await require('./cron/jobs/generateDailyReports')();
+          const { generateDailyReports } = require('./cron/jobs/generateDailyReports');
+          result = await generateDailyReports();
           break;
         case 'backup':
-          result = await require('./cron/jobs/backupDatabase')();
+          const { backupDatabase } = require('./cron/jobs/backupDatabase');
+          result = await backupDatabase();
+          break;
+        case 'bitrix':
+          const { syncBitrixData } = require('./cron/jobs/syncBitrixData');
+          result = await syncBitrixData();
           break;
         default:
           return res.status(404).json({ 
             success: false, 
-            message: 'Job not found' 
+            message: 'Job not found. Available jobs: cleanup, reports, backup, bitrix' 
           });
       }
       
       res.json({ success: true, result });
     } catch (error) {
+      console.error('Trigger job error:'.red, error);
       res.status(500).json({ 
         success: false, 
         message: error.message 
@@ -124,6 +145,16 @@ if (process.env.NODE_ENV !== 'production') {
     }
   });
 }
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    redis: redisClient.isOpen ? 'connected' : 'disconnected'
+  });
+});
 
 app.get('/', (req, res) => {
   res.send('Bitrix24 API Caller Service is Running!');
@@ -140,11 +171,19 @@ app.use((err, req, res, next) => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  const { stopCronJobs } = require('./cron');
-  stopCronJobs();
-  await mongoose.connection.close();
-  await redisClient.quit();
-  process.exit(0);
+  console.log('\n🛑 Shutting down gracefully...'.yellow);
+  
+  try {
+    const { stopCronJobs } = require('./cron');
+    stopCronJobs();
+    await mongoose.connection.close();
+    await redisClient.quit();
+    console.log('✅ All connections closed. Goodbye!'.green);
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:'.red, error);
+    process.exit(1);
+  }
 });
 
 // Start server
@@ -155,4 +194,4 @@ app.listen(PORT, () => {
   }
 });
 
-module.exports = { redisClient };
+module.exports = { app, redisClient };

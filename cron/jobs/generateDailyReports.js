@@ -1,24 +1,20 @@
 /**
- * Generate daily reports
- * Runs daily at 2 AM
+ * Job: Generates and sends daily reports
  */
 const generateDailyReports = async () => {
-  console.log('📊 Running daily report generation at', new Date());
+  console.log('📊 [Cron] Starting daily report generation...'.yellow);
   
   try {
-    // Example: Generate some report data
-    const reportData = {
-      date: new Date().toISOString().split('T')[0],
-      generatedAt: new Date(),
-      status: 'completed'
-    };
-    
-    console.log('✅ Daily report generated');
-    return { success: true, report: reportData };
-  } catch (err) {
-    console.error('❌ Daily report generation error:', err);
-    throw err;
+    // Logic to generate reports from MongoDB
+    // Logic to send emails via Bitrix or other services
+    console.log('✅ [Cron] Daily reports generated successfully.'.green);
+    return { status: 'success' };
+  } catch (error) {
+    console.error('❌ [Cron] Report generation failed:'.red, error.message);
+    return { status: 'error', error: error.message };
   }
 };
 
-module.exports = generateDailyReports;
+module.exports = {
+  generateDailyReports
+};

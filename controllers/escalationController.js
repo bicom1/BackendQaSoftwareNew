@@ -9,22 +9,28 @@ const escalationQueue = require('../queues/escalationQueue');
 
 const createEscalation = async (req, res) => {
   try {
-    const job = await escalationQueue.add(req.body, {
+    // Save escalation to MongoDB first
+    const escalationDoc = await Escalation.create(req.body);
+
+    // Add to queue
+    const job = await escalationQueue.add(escalationDoc.toObject(), {
       attempts: 3,
       backoff: { type: 'exponential', delay: 1000 }
     });
 
-    res.status(202).json({
-      message: 'Evaluation queued',
+    res.status(201).json({
+      message: 'Escalation queued successfully',
       jobId: job.id,
       queueStatus: {
         waiting: await escalationQueue.getWaitingCount()
-      }
+      },
+      data: escalationDoc
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 
 const createBulkEscalation = async (req, res) => {
@@ -76,7 +82,7 @@ const createBulkEscalation = async (req, res) => {
 const getEscalation = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 100, 1000); // Max 1000 per page
+    const limit = Math.min(parseInt(req.query.limit) || 100, 1000); 
     const skip = (page - 1) * limit;
 
     // Build query from optional filters
@@ -102,7 +108,7 @@ const getEscalation = async (req, res) => {
     // Cache the first page for common queries
     if (page === 1 && Object.keys(query).length > 0) {
       const cacheKey = `evals:${JSON.stringify(query)}`;
-      redisClient.setex(cacheKey, 60, JSON.stringify(escalation)); // Cache for 60 seconds
+      redisClient.setex(cacheKey, 60, JSON.stringify(escalation));
     }
 
     res.status(200).json({

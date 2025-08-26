@@ -1,23 +1,16 @@
+// controllers/userController.js
 const AsyncHandler = require('express-async-handler');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/usermodel');
-const Token = require('../models/Token');
-
-const {
-  generateResetToken,
-  saveToken,
-  validateToken,
-  generateAuthToken
-} = require('../services/tokenService');
-
 const { sendPasswordResetEmail } = require('../services/emailService');
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+// ✅ Consistent token generator
+const generateToken = (id, expiresIn = '1d') => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn });
 };
 
-
+// @desc Register
 const registerUser = AsyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -41,55 +34,41 @@ const registerUser = AsyncHandler(async (req, res) => {
     _id: createUser._id,
     name: createUser.name,
     email: createUser.email,
-    password: createUser.password,
     role: createUser.role,
-    token: generateToken(createUser._id)
+    token: generateToken(createUser._id),
   });
 });
 
-
-
+// @desc Login
 const loginUser = AsyncHandler(async (req, res) => {
-    const { email, password } = req.body;
-  
-    try {
-     
-      const user = await User.findOne({ email }).select('+password');
-      if (!user) {
-        return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      }
-  
-    
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      }
-  
-    
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-        expiresIn: '1d',
-      });
-  
-      
-      res.status(200).json({
-        success: true,
-        token,
-        message: 'Login successful',
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ success: false, message: 'Server error' });
-    }
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email }).select('+password');
+  if (!user) {
+    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+
+  const token = generateToken(user._id);
+
+  res.status(200).json({
+    success: true,
+    token,
+    message: 'Login successful',
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
   });
-  
+});
 
-
+// @desc Forgot Password (send reset link)
 const forgotPassword = AsyncHandler(async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
@@ -98,33 +77,35 @@ const forgotPassword = AsyncHandler(async (req, res) => {
     return res.status(200).json({ message: 'If an account exists, a reset link has been sent' });
   }
 
-  const token = generateResetToken();
-  await saveToken(user._id, token);
-  await sendPasswordResetEmail(user.email, token);
+  // Generate reset token (JWT valid for 15m)
+  const resetToken = generateToken(user._id, '15m');
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+  await sendPasswordResetEmail(user.email, resetLink);
 
   res.status(200).json({ message: 'If an account exists, a reset link has been sent' });
 });
 
-
+// @desc Reset Password
 const resetPassword = AsyncHandler(async (req, res) => {
   const { token, newPassword } = req.body;
 
   if (!token || !newPassword) {
     return res.status(400).json({ message: 'Token and new password are required' });
   }
-
   if (newPassword.length < 8) {
     return res.status(400).json({ message: 'Password must be at least 8 characters long' });
   }
 
-  const tokenDoc = await validateToken(token);
-  if (!tokenDoc) {
-    return res.status(400).json({ message: 'Invalid or expired token. Please request a new password reset.' });
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(400).json({ message: 'Invalid or expired reset token' });
   }
 
-  const user = await User.findById(tokenDoc.userId);
+  const user = await User.findById(decoded.id);
   if (!user) {
-    await Token.findByIdAndDelete(tokenDoc._id);
     return res.status(404).json({ message: 'User not found' });
   }
 
@@ -135,49 +116,46 @@ const resetPassword = AsyncHandler(async (req, res) => {
 
   user.password = await bcrypt.hash(newPassword, 12);
   await user.save();
-  await Token.deleteMany({ userId: user._id });
 
   res.status(200).json({ success: true, message: 'Password updated successfully' });
 });
 
-
+// @desc Profile
 const findMyProfile = AsyncHandler(async (req, res) => {
-  const userId = req.user.id; // From JWT token (authMiddleware)
-  const foundUser = await User.findById(userId).select("-password");
-  
+  if (!req.user) {
+    return res.status(401).json({ message: 'Not authorized, token failed' });
+  }
+
+  const foundUser = await User.findById(req.user._id).select('-password');
   if (!foundUser) {
     res.status(404);
-    throw new Error("User not found");
+    throw new Error('User not found');
   }
 
   res.status(200).json(foundUser);
 });
 
 
-
+// @desc Get All Users
 const getAllUsers = AsyncHandler(async (req, res) => {
   const users = await User.find({}).select('-password');
-  res.status(200).json({
-    success: true,
-    count: users.length,
-    data: users
-  });
+  res.status(200).json({ success: true, count: users.length, data: users });
 });
 
-const totalUserCount = AsyncHandler(async(req,res)=>{
+// @desc Total Count
+const totalUserCount = AsyncHandler(async (req, res) => {
   const count = await User.countDocuments();
-  res.status(200).json({success:true,count})
-})
+  res.status(200).json({ success: true, count });
+});
 
-
+// @desc Logout
 const logout = (req, res) => {
   try {
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      sameSite: 'strict',
     });
-
     res.status(200).json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error during logout' });
@@ -192,5 +170,5 @@ module.exports = {
   findMyProfile,
   getAllUsers,
   totalUserCount,
-  logout
+  logout,
 };
