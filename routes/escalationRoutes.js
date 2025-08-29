@@ -8,7 +8,8 @@ const {
   updateEscalation,
   deleteEscalation,
   getescalationsbyfilter,
-  totalescalationcounts
+  totalescalationcounts,
+  dateFilterescalation
 } = require('../controllers/escalationController');
 const multer = require('multer');
 const path = require('path');
@@ -66,6 +67,9 @@ router.put('/:id', updateEscalation);
 router.delete('/:id', deleteEscalation);
 router.get('/getescalationsbyfilter', getescalationsbyfilter);
 router.get("/totalescalationcounts", totalescalationcounts);
+router.get("/dateFilterescalation", dateFilterescalation)
+
+
 
 
 module.exports = router;
