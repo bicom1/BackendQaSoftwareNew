@@ -9,14 +9,16 @@ const {
   deleteEscalation,
   getescalationsbyfilter,
   totalescalationcounts,
-  dateFilterescalation
+  dateFilterescalation,
+  createEscalation
 } = require('../controllers/escalationController');
 const multer = require('multer');
 const path = require('path');
-const escalationQueue = require('../queues/escalationQueue'); 
+const Escalation = require('../models/Escalation');
 
 const router = express.Router();
 
+// === Multer config for file uploads ===
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/'); // Ensure this folder exists
@@ -27,30 +29,25 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// === Audio-based escalation upload route (now handles all form submissions) ===
+// === Audio-based escalation upload route (now saves directly, no queue) ===
 router.post('/upload', upload.single('audio'), async (req, res) => {
   try {
     const data = {
-      ...req.body, // req.body is correctly populated by Multer here
+      ...req.body,
       audio: req.file ? `/uploads/${req.file.filename}` : null,
     };
 
-    // Handle 'Other' action if specified by the frontend
+    // Handle "Other" action if provided
     if (data.escAction === "Other" && req.body.otherReason) {
-      data.escAction = req.body.otherReason; // Overwrite escAction with the custom reason
+      data.escAction = req.body.otherReason;
     }
 
-    const job = await escalationQueue.add(data, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1000 },
-    });
+    // Save directly to DB
+    const escalation = await Escalation.create(data);
 
-    res.status(202).json({
-      message: 'Escalation queued with audio (or no audio)',
-      jobId: job.id,
-      queueStatus: {
-        waiting: await escalationQueue.getWaitingCount()
-      }
+    res.status(201).json({
+      message: 'Escalation saved with audio (or no audio)',
+      escalation,
     });
   } catch (err) {
     console.error('[Audio Upload Error]', err);
@@ -58,18 +55,16 @@ router.post('/upload', upload.single('audio'), async (req, res) => {
   }
 });
 
-
+// === Escalation routes ===
+router.post('/', createEscalation);
 router.post('/bulk', createBulkEscalation);
 router.get('/getescalations', getEscalation);
 router.get('/getescalationbyid/:id', getEscalationById);
-router.get('/queue/status', getQueueStatus);
+router.get('/queue/status', getQueueStatus); // will just return "Queue functionality removed"
 router.put('/:id', updateEscalation);
 router.delete('/:id', deleteEscalation);
 router.get('/getescalationsbyfilter', getescalationsbyfilter);
 router.get("/totalescalationcounts", totalescalationcounts);
-router.get("/dateFilterescalation", dateFilterescalation)
-
-
-
+router.get("/dateFilterescalation", dateFilterescalation);
 
 module.exports = router;

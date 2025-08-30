@@ -1,37 +1,15 @@
 const AsyncHandler = require('express-async-handler');
-const Escalation = require('../models/Escalation');
 const mongoose = require('mongoose');
-const redis = require('redis');
-const Queue = require('bull');
-const {redisClient} = require('../config/connection');
-const escalationQueue = require('../queues/escalationQueue');
-
+const Escalation = require('../models/Escalation');
 
 const createEscalation = async (req, res) => {
   try {
-    // Save escalation to MongoDB first
-    const escalationDoc = await Escalation.create(req.body);
-
-    // Add to queue
-    const job = await escalationQueue.add(escalationDoc.toObject(), {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1000 }
-    });
-
-    res.status(201).json({
-      message: 'Escalation queued successfully',
-      jobId: job.id,
-      queueStatus: {
-        waiting: await escalationQueue.getWaitingCount()
-      },
-      data: escalationDoc
-    });
+    const escalation = await Escalation.create(req.body);
+    res.status(201).json({ message: "Escalation saved", escalation });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
-
 
 const createBulkEscalation = async (req, res) => {
   try {
@@ -41,7 +19,7 @@ const createBulkEscalation = async (req, res) => {
       return res.status(400).json({ message: 'Input should be an array of escalations' });
     }
 
-    // Validate each evaluation
+    // Validate each escalation
     const invalidEscalation = escalation.filter(eval => 
       !eval.owner || !eval.useremail || !eval.leadID || 
       !eval.agentName || !eval.mod || !eval.teamleader
@@ -49,32 +27,20 @@ const createBulkEscalation = async (req, res) => {
 
     if (invalidEscalation.length > 0) {
       return res.status(400).json({ 
-        message: `${invalidEscalation.length} evaluations missing required fields`,
+        message: `${invalidEscalation.length} escalations missing required fields`,
         examples: invalidEscalation.slice(0, 3)
       });
     }
 
-    // Add all evaluations to the queue
-    const jobs = escalation.map(eval => ({
-      data: eval,
-      opts: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
-        timeout: 30000
-      }
-    }));
-
-    await evaluationQueue.addBulk(jobs);
+    // Insert all escalations directly
+    const createdEscalations = await Escalation.insertMany(escalation);
     
-    res.status(202).json({ 
-      message: `${escalation.length} escalation queued for processing`,
-      queueStatus: {
-        waiting: await evaluationQueue.getWaitingCount(),
-        active: await evaluationQueue.getActiveCount()
-      }
+    res.status(201).json({ 
+      message: `${createdEscalations.length} escalations created successfully`,
+      data: createdEscalations
     });
   } catch (error) {
-    console.error('Error queuing bulk escalation:', error);
+    console.error('Error creating bulk escalation:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -105,12 +71,6 @@ const getEscalation = async (req, res) => {
       Escalation.countDocuments(query)
     ]);
 
-    // Cache the first page for common queries
-    if (page === 1 && Object.keys(query).length > 0) {
-      const cacheKey = `evals:${JSON.stringify(query)}`;
-      redisClient.setex(cacheKey, 60, JSON.stringify(escalation));
-    }
-
     res.status(200).json({
       data: escalation,
       meta: {
@@ -134,36 +94,13 @@ const getEscalationById = async (req, res) => {
       return res.status(400).json({ message: 'Invalid escalation ID' });
     }
 
-    const cacheKey = `eval:${id}`;
+    const escalation = await Escalation.findById(id).lean();
 
-    try {
-      // Try to get from Redis first (using promises)
-      const cachedData = await redisClient.get(cacheKey);
-      
-      if (cachedData) {
-        return res.status(200).json(JSON.parse(cachedData));
-      }
-
-      // Not in cache - query database
-      const escalation = await Escalation.findById(id).lean();
-
-      if (!escalation) {
-        return res.status(404).json({ message: 'escalation not found' });
-      }
-
-      // Cache for 1 hour (using promises)
-      await redisClient.setEx(cacheKey, 3600, JSON.stringify(escalation));
-      return res.status(200).json(escalation);
-      
-    } catch (redisError) {
-      console.error('Redis error:', redisError);
-      // Fallback to DB if Redis fails
-      const escalation = await Escalation.findById(id).lean();
-      if (!escalation) {
-        return res.status(404).json({ message: 'Escalation not found' });
-      }
-      return res.status(200).json(escalation);
+    if (!escalation) {
+      return res.status(404).json({ message: 'Escalation not found' });
     }
+
+    return res.status(200).json(escalation);
   } catch (error) {
     console.error('Error fetching Escalation:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -193,10 +130,6 @@ const updateEscalation = async (req, res) => {
       return res.status(404).json({ message: 'Escalation not found' });
     }
 
-    // Update cache
-    const cacheKey = `eval:${id}`;
-    redisClient.setex(cacheKey, 3600, JSON.stringify(escalation));
-
     res.status(200).json(escalation);
   } catch (error) {
     console.error('Error updating escalation:', error);
@@ -218,13 +151,9 @@ const deleteEscalation = async (req, res) => {
       return res.status(404).json({ message: 'Escalation not found' });
     }
 
-    // Clear cache
-    const cacheKey = `eval:${id}`;
-    redisClient.del(cacheKey);
-
     res.status(200).json({ 
       message: 'Escalation deleted successfully',
-      deletedEvaluation: evaluation
+      deletedEvaluation: escalation
     });
   } catch (error) {
     console.error('Error deleting Escalation:', error);
@@ -232,28 +161,11 @@ const deleteEscalation = async (req, res) => {
   }
 };
 
-
 const getQueueStatus = async (req, res) => {
   try {
-    const counts = await Promise.all([
-      escalationQueue.getWaitingCount(),
-      escalationQueue.getActiveCount(),
-      escalationQueue.getCompletedCount(),
-      escalationQueue.getFailedCount()
-    ]);
-
-    
-    const redisStatus = redisClient.isOpen ? 'connected' : 'disconnected';
-
     res.status(200).json({
-      status: 'operational',
-      queueStats: {
-        waiting: counts[0],
-        active: counts[1],
-        completed: counts[2],
-        failed: counts[3]
-      },
-      redisStatus
+      status: 'Queue functionality removed',
+      message: 'Redis and Bull queue dependencies have been removed from this implementation'
     });
   } catch (error) {
     res.status(500).json({
@@ -262,7 +174,6 @@ const getQueueStatus = async (req, res) => {
     });
   }
 };
-
 
 const getescalationsbyfilter = async (req, res) => {
   try {
@@ -328,12 +239,9 @@ const dateFilterescalation = async (req, res) => {
       query.teamleader = { $regex: new RegExp(teamleader, "i") };
     }
 
-  
     if (agentName && agentName.trim() !== "") {
       query.agentName = { $regex: new RegExp(agentName, "i") };
     }
-
-   
 
     const filteredData = await Escalation.find(query);
 
@@ -356,7 +264,6 @@ const dateFilterescalation = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   createEscalation,

@@ -162,6 +162,120 @@ const logout = (req, res) => {
   }
 };
 
+const getUserSubmissionStats = async (req, res) => {
+  try {
+    const userId = req.user._id; // Authenticated user की ID
+
+    // Aggregation pipeline बनाएं
+    const userStats = await User.aggregate([
+      {
+        $match: { _id: userId } // Current user को filter करें
+      },
+      {
+        $lookup: {
+          from: "evaluations", // Evaluation collection
+          localField: "_id",
+          foreignField: "userId", // Evaluation model में userId field होनी चाहिए
+          as: "evaluations"
+        }
+      },
+      {
+        $lookup: {
+          from: "escalations", // Escalation collection
+          localField: "_id",
+          foreignField: "userId", // Escalation model में userId field होनी चाहिए
+          as: "escalations"
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          email: 1,
+          evaluationCount: { $size: "$evaluations" },
+          escalationCount: { $size: "$escalations" },
+          totalSubmissions: { 
+            $add: [
+              { $size: "$evaluations" },
+              { $size: "$escalations" }
+            ]
+          }
+        }
+      }
+    ]);
+
+    if (userStats.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: userStats[0]
+    });
+  } catch (error) {
+    console.error("Error fetching user submission stats:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// सभी users के submission statistics के लिए function
+const getAllUsersSubmissionStats = async (req, res) => {
+  try {
+    const usersStats = await User.aggregate([
+      {
+        $lookup: {
+          from: "evaluations",
+          localField: "_id",
+          foreignField: "userId",
+          as: "evaluations"
+        }
+      },
+      {
+        $lookup: {
+          from: "escalations",
+          localField: "_id",
+          foreignField: "userId",
+          as: "escalations"
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          email: 1,
+          evaluationCount: { $size: "$evaluations" },
+          escalationCount: { $size: "$escalations" },
+          totalSubmissions: { 
+            $add: [
+              { $size: "$evaluations" },
+              { $size: "$escalations" }
+            ]
+          }
+        }
+      },
+      {
+        $sort: { totalSubmissions: -1 } // सबसे ज्यादा submissions वाले users पहले
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: usersStats,
+      totalUsers: usersStats.length
+    });
+  } catch (error) {
+    console.error("Error fetching all users submission stats:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -171,4 +285,6 @@ module.exports = {
   getAllUsers,
   totalUserCount,
   logout,
+  getUserSubmissionStats,
+  getAllUsersSubmissionStats
 };

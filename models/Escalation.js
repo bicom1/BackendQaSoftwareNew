@@ -2,14 +2,14 @@
 const mongoose = require('mongoose');
 
 const escalationSchema = new mongoose.Schema({
-  owner: {
-    type: String,
-    trim: true,
-    default: ""
-  },
+ owner: { 
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  required: true
+},
   useremail: {
     type: String,
-    required: [true, 'Reporter email is required'],
+    required: [true, ' email is required'],
     trim: true,
     lowercase: true,
     
@@ -61,10 +61,9 @@ const escalationSchema = new mongoose.Schema({
   escSeverity: {
   type: String,
   required: [true, 'Escalation Severity is required'],
-  enum: ["Urgent Action required", "High", "Repeated"],
-  set: val => val.charAt(0).toUpperCase() + val.slice(1).toLowerCase() // capitalizes first letter
+  enum: ["urgent", "high", "repeated"],   // clean, consistent values
+  set: val => val.toLowerCase()           // always store in lowercase
 },
-
   issueIden: {
     type: String,
     required: [true, 'Issue Identification is required'],
