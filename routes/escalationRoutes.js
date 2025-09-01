@@ -1,70 +1,40 @@
-// routes/escalationRoutes.js
-const express = require('express');
+const express = require("express");
+const multer = require("multer");
 const {
-  createBulkEscalation,
-  getEscalation,
+  createEscalation,
+  getEscalations,
   getEscalationById,
-  getQueueStatus,
   updateEscalation,
   deleteEscalation,
-  getescalationsbyfilter,
-  totalescalationcounts,
-  dateFilterescalation,
-  createEscalation
-} = require('../controllers/escalationController');
-const multer = require('multer');
-const path = require('path');
-const Escalation = require('../models/Escalation');
+  totalescalationscounts
+} = require("../controllers/escalationController");
 
 const router = express.Router();
 
-// === Multer config for file uploads ===
+// Ensure uploads/audio exists or create it at app startup
+const path = require("path");
+const fs = require("fs");
+const uploadDir = path.join(process.cwd(), "uploads", "audio");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+// Multer storage config for audio
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Ensure this folder exists
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
   },
 });
 const upload = multer({ storage });
 
-// === Audio-based escalation upload route (now saves directly, no queue) ===
-router.post('/upload', upload.single('audio'), async (req, res) => {
-  try {
-    const data = {
-      ...req.body,
-      audio: req.file ? `/uploads/${req.file.filename}` : null,
-    };
-
-    // Handle "Other" action if provided
-    if (data.escAction === "Other" && req.body.otherReason) {
-      data.escAction = req.body.otherReason;
-    }
-
-    // Save directly to DB
-    const escalation = await Escalation.create(data);
-
-    res.status(201).json({
-      message: 'Escalation saved with audio (or no audio)',
-      escalation,
-    });
-  } catch (err) {
-    console.error('[Audio Upload Error]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// === Escalation routes ===
-router.post('/', createEscalation);
-router.post('/bulk', createBulkEscalation);
-router.get('/getescalations', getEscalation);
-router.get('/getescalationbyid/:id', getEscalationById);
-router.get('/queue/status', getQueueStatus); // will just return "Queue functionality removed"
-router.put('/:id', updateEscalation);
-router.delete('/:id', deleteEscalation);
-router.get('/getescalationsbyfilter', getescalationsbyfilter);
-router.get("/totalescalationcounts", totalescalationcounts);
-router.get("/dateFilterescalation", dateFilterescalation);
+// CRUD routes - PUT STATIC ROUTES FIRST
+router.get("/totalescalationscounts", totalescalationscounts);
+router.post("/", upload.single("audio"), createEscalation);
+router.get("/", getEscalations);
+router.get("/:id", getEscalationById);
+router.put("/:id", upload.single("audio"), updateEscalation);
+router.delete("/:id", deleteEscalation);
 
 module.exports = router;

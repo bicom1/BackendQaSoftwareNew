@@ -72,7 +72,6 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));
 app.use('/api/evaluations', require('./routes/evaluationRoutes'));
 app.use('/api/escalations', require('./routes/escalationRoutes'));
