@@ -1,71 +1,40 @@
-// routes/escalationRoutes.js
-const express = require('express');
+const express = require("express");
+const multer = require("multer");
 const {
-  createBulkEscalation,
-  getEscalation,
+  createEscalation,
+  getEscalations,
   getEscalationById,
-  getQueueStatus,
   updateEscalation,
   deleteEscalation,
-  getescalationsbyfilter,
-  totalescalationcounts
-} = require('../controllers/escalationController');
-const multer = require('multer');
-const path = require('path');
-const escalationQueue = require('../queues/escalationQueue'); 
+  totalescalationscounts
+} = require("../controllers/escalationController");
 
 const router = express.Router();
 
+// Ensure uploads/audio exists or create it at app startup
+const path = require("path");
+const fs = require("fs");
+const uploadDir = path.join(process.cwd(), "uploads", "audio");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+// Multer storage config for audio
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Ensure this folder exists
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
   },
 });
 const upload = multer({ storage });
 
-// === Audio-based escalation upload route (now handles all form submissions) ===
-router.post('/upload', upload.single('audio'), async (req, res) => {
-  try {
-    const data = {
-      ...req.body, // req.body is correctly populated by Multer here
-      audio: req.file ? `/uploads/${req.file.filename}` : null,
-    };
-
-    // Handle 'Other' action if specified by the frontend
-    if (data.escAction === "Other" && req.body.otherReason) {
-      data.escAction = req.body.otherReason; // Overwrite escAction with the custom reason
-    }
-
-    const job = await escalationQueue.add(data, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1000 },
-    });
-
-    res.status(202).json({
-      message: 'Escalation queued with audio (or no audio)',
-      jobId: job.id,
-      queueStatus: {
-        waiting: await escalationQueue.getWaitingCount()
-      }
-    });
-  } catch (err) {
-    console.error('[Audio Upload Error]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-router.post('/bulk', createBulkEscalation);
-router.get('/getescalations', getEscalation);
-router.get('/getescalationbyid/:id', getEscalationById);
-router.get('/queue/status', getQueueStatus);
-router.put('/:id', updateEscalation);
-router.delete('/:id', deleteEscalation);
-router.get('/getescalationsbyfilter', getescalationsbyfilter);
-router.get("/totalescalationcounts", totalescalationcounts);
-
+// CRUD routes - PUT STATIC ROUTES FIRST
+router.get("/totalescalationscounts", totalescalationscounts);
+router.post("/", upload.single("audio"), createEscalation);
+router.get("/", getEscalations);
+router.get("/:id", getEscalationById);
+router.put("/:id", upload.single("audio"), updateEscalation);
+router.delete("/:id", deleteEscalation);
 
 module.exports = router;
