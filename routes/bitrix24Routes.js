@@ -8,6 +8,7 @@ const {
   testRoute,
   searchLeads,
   getLeadByNumber,
+  bitrixLeadButton,
 } = require('../controllers/bitrix24Controller');
 
 router.get('/leads', getLeads);
@@ -17,7 +18,7 @@ router.get('/leads/:id', getLeadById);
 router.get('/user-leads/:id', getLeadByNumber);
 router.get('/search-leads', searchLeads); 
 router.get('/test', testRoute);
-
+router.post('/lead-button', bitrixLeadButton)
 module.exports = router;
 
 

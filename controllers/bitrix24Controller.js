@@ -163,6 +163,34 @@ exports.getLeadByNumber = async (req, res) => {
 
 
 
+
+exports.bitrixLeadButton = async (req, res) => {
+  try {
+    
+    const { leadId } = req.body; 
+
+    if (!leadId) {
+      return res.status(400).json({ success: false, message: 'leadId is required' });
+    }
+
+    const leadData = await callBitrixApi('crm.lead.get', { ID: leadId });
+
+    return res.json({
+      success: true,
+      lead: leadData.result,
+    });
+  } catch (error) {
+    console.error('Error in bitrixLeadButton:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong while fetching lead details',
+    });
+  }
+};
+
+
+
+
 // Test route
 exports.testRoute = (req, res) => {
   res.send('Bitrix24 route is working!');

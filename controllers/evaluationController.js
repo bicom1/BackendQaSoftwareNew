@@ -1,10 +1,13 @@
-const Evaluation = require('../models/Evaluation');
-const mongoose = require('mongoose');
-const redis = require('redis');
-const Queue = require('bull');
-const {redisClient} = require('../config/connection');
-const evaluationQueue = require('../queues/evaluationQueue');
-const AsyncHandler = require('express-async-handler');
+import express from 'express';
+import mongoose from 'mongoose';
+import redis from 'redis';
+import Queue from 'bull';
+import { redisClient } from '../config/connection.js';
+import evaluationQueue from '../queues/evaluationQueue.js';
+import AsyncHandler from 'express-async-handler';
+import Evaluation from '../models/Evaluation.js';
+
+
 
 
 const createEvaluation = async (req, res) => {
@@ -26,9 +29,9 @@ const createBulkEvaluations = async (req, res) => {
     }
 
     // Validate each evaluation
-    const invalidEvaluations = evaluations.filter(eval => 
-      !eval.owner || !eval.useremail || !eval.leadID || 
-      !eval.agentName || !eval.mod || !eval.teamleader
+    const invalidEvaluations = evaluations.filter(item => 
+      !item.owner || !item.useremail || !item.leadID || 
+      !item.agentName || !item.mod || !item.teamleader
     );
 
     if (invalidEvaluations.length > 0) {
@@ -39,8 +42,8 @@ const createBulkEvaluations = async (req, res) => {
     }
 
     // Add all evaluations to the queue
-    const jobs = evaluations.map(eval => ({
-      data: eval,
+    const jobs = evaluations.map(item => ({
+      data: item,
       opts: {
         attempts: 3,
         backoff: { type: 'exponential', delay: 1000 },
@@ -62,6 +65,7 @@ const createBulkEvaluations = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 const getEvaluations = async (req, res) => {
   try {
@@ -316,7 +320,47 @@ const datefilterevaluation = async (req, res) => {
   }
 };
 
-module.exports = {
+// export const getEvaluationsByOwner = async (req, res) => {
+//   try {
+//     const { ownerId } = req.params;
+
+//     const evaluations = await Evaluation.find({ owner: ownerId });
+
+//     res.status(200).json({
+//       success: true,
+//       ownerId,
+//       total: evaluations.length,
+//       data: evaluations,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+
+const getEvaluationsByOwner = AsyncHandler(async (req, res) => {
+  const { ownerId } = req.params;
+
+  const evaluations = await Evaluation.find({ owner: ownerId });
+
+  if (!evaluations || evaluations.length === 0) {
+    return res.status(404).json({ message: "No evaluations found for this owner" });
+  }
+
+  res.json({
+    count: evaluations.length,
+    evaluations
+  });
+});
+
+
+
+
+
+
+
+
+export {
   createEvaluation,
   createBulkEvaluations,
   getEvaluations,
@@ -325,6 +369,7 @@ module.exports = {
   deleteEvaluation,
   getQueueStatus,
   totalevaluationcounts,
-  evaluationQueue, // Export for worker processes, 
-  datefilterevaluation
+  evaluationQueue,
+  datefilterevaluation,
+  getEvaluationsByOwner
 };
