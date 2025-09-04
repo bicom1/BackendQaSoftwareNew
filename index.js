@@ -57,8 +57,7 @@ const connectDB = async () => {
 app.use(helmet());
 app.use(cors({
   // origin: "http://localhost:5173",
-  origin: "https://qasoftwaretesting.vercel.app/",
-
+  origin:"https://qasoftwaretesting.vercel.app",
   credentials: true
 }));
 app.use(express.json());
