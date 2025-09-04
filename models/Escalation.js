@@ -6,11 +6,11 @@ const escalationSchema = new mongoose.Schema(
 owner: {
 type: mongoose.Schema.Types.ObjectId,
 ref: "User",
-required: true,
+required: false,
 },
 useremail: {
 type: String,
-required: [true, "Email is required"],
+required: [false, "Email is required"],
 },
 leadID: {
 type: String,
@@ -18,11 +18,11 @@ required: [true, "Lead ID is required"],
 },
 evaluatedby: {
 type: String,
-required: [true, "Evaluated by is required"],
+required: [false, "Evaluated by is required"],
 },
 agentName: {
 type: String,
-required: [true, "Agent name is required"],
+required: [false, "Agent name is required"],
 },
 teamleader: {
 type: String,
