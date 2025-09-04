@@ -1,177 +1,197 @@
-const axios = require('axios');
+const { callBitrixApi } = require('../services/bitrixApi');
+const Lead = require('../models/Lead');
+const Contact = require('../models/Contact');
+const Deal = require('../models/Deal');
 
-const callBitrixApi = async (req, res) => {
-    const currentBitrixApiBaseUrl = process.env.BITRIX_API_BASE_URL;
+// Get and store leads
+exports.getLeads = async (req, res) => {
+  try {
+    const leads = await callBitrixApi('crm.lead.list');
+    console.log("Leads fetched:", leads?.result?.length);
 
-    if (!req.body || Object.keys(req.body).length === 0) {
-        console.warn("[Controller] req.body is undefined, empty, or not parsed.".yellow);
-        return res.status(400).json({
-            success: false,
-            message: 'Request body is missing, empty, or not parsed correctly.'
-        });
+    if (leads.result && Array.isArray(leads.result)) {
+      await Promise.all(
+        leads.result.map(async item => {
+          const exists = await Lead.findOne({ "data.ID": item.ID });
+          if (!exists) {
+            await Lead.create({ data: item });
+          }
+        })
+      );
     }
 
-    const { method, params } = req.body;
+    res.json(leads);
+  } catch (err) {
+    console.error("Error in getLeads:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    if (!currentBitrixApiBaseUrl) {
-        console.error("[Controller] FATAL: BITRIX_API_BASE_URL is not set.".red);
-        return res.status(500).json({
-            success: false,
-            message: 'Server configuration error: Bitrix24 API base URL is not set.'
-        });
+// Get and store contacts
+exports.getContacts = async (req, res) => {
+  try {
+    const contacts = await callBitrixApi('crm.contact.list');
+
+    if (contacts.result && Array.isArray(contacts.result)) {
+      await Promise.all(
+        contacts.result.map(async item => {
+          const exists = await Contact.findOne({ "data.ID": item.ID });
+          if (!exists) {
+            await Contact.create({ data: item });
+          }
+        })
+      );
     }
 
-    if (!method) {
-        return res.status(400).json({
-            success: false,
-            message: 'Bitrix24 API "method" not specified in request body.'
-        });
+    res.json(contacts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get and store deals
+exports.getDeals = async (req, res) => {
+  try {
+    const deals = await callBitrixApi('crm.deal.list');
+
+    if (deals.result && Array.isArray(deals.result)) {
+      await Promise.all(
+        deals.result.map(async item => {
+          const exists = await Deal.findOne({ "data.ID": item.ID });
+          if (!exists) {
+            await Deal.create({ data: item });
+          }
+        })
+      );
     }
 
-    const bitrixApiUrl = `${currentBitrixApiBaseUrl.replace(/\/$/, '')}/${method}.json`;
+    res.json(deals);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    try {
-        console.log(`[Controller] Calling Bitrix24 API: ${bitrixApiUrl}`.blue);
-        const bitrixResponse = await axios.post(bitrixApiUrl, params || {});
+// Get lead by ID
+exports.getLeadById = async (req, res) => {
+  const { id } = req.params;
 
-        if (bitrixResponse.data && bitrixResponse.data.error) {
-            console.error('[Controller] Bitrix24 API error:'.red, bitrixResponse.data.error);
-            return res.status(400).json({
-                success: false,
-                message: `Bitrix24 API error: ${bitrixResponse.data.error_description || bitrixResponse.data.error}`,
-                bitrixError: bitrixResponse.data
-            });
+  try {
+    const lead = await callBitrixApi('crm.lead.get', { id });
+    res.json(lead);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.searchLeads = async (req, res) => {
+  const query = req.query.q;
+
+  if (!query) {
+    return res.status(400).json({ error: 'Search query (q) is required' });
+  }
+
+  try {
+    // 1. Try MongoDB first
+    const mongoResults = await Lead.find({
+      "data.TITLE": { $regex: query, $options: 'i' },
+    });
+
+    if (mongoResults.length > 0) {
+      console.log('Returning leads from MongoDB');
+      return res.json({ source: 'mongodb', result: mongoResults });
+    }
+
+    // 2. Not found → fallback to Bitrix24
+    console.log('Querying Bitrix24...');
+    const bitrixResponse = await callBitrixApi('crm.lead.list', {
+      filter: { TITLE: query },
+    });
+
+    const bitrixLeads = bitrixResponse?.result || [];
+
+    // 3. Store results in MongoDB (if not already)
+    await Promise.all(
+      bitrixLeads.map(async (item) => {
+        const exists = await Lead.findOne({ "data.ID": item.ID });
+        if (!exists) {
+          await Lead.create({ data: item });
         }
+      })
+    );
 
-        res.status(200).json({
-            success: true,
-            data: bitrixResponse.data.result !== undefined ? bitrixResponse.data.result : bitrixResponse.data
-        });
+    res.json({ source: 'bitrix24', result: bitrixLeads });
+  } catch (err) {
+    console.error("searchLeads error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    } catch (error) {
-        console.error('[Controller] Bitrix24 API call failed:'.red, error.message);
-        
-        if (error.response) {
-            res.status(error.response.status || 500).json({
-                success: false,
-                message: `Bitrix24 API error: ${error.response.data.error_description || error.response.data.error}`,
-                errorDetails: error.response.data
-            });
-        } else if (error.request) {
-            res.status(502).json({
-                success: false,
-                message: 'No response from Bitrix24 API'
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                message: 'Request setup error',
-                errorDetails: error.message
-            });
-        }
+exports.getLeadByNumber = async (req, res) => {
+  const leadId = req.params.id;
+
+  if (!leadId) {
+    return res.status(400).json({ error: 'Lead ID is required' });
+  }
+
+  try {
+    // 1. Check in MongoDB first
+    const lead = await Lead.findOne({ "data.ID": leadId });
+
+    if (lead) {
+      console.log('Lead found in MongoDB');
+      return res.json({ source: 'mongodb', result: lead });
     }
+
+    // 2. Not found → fetch from Bitrix24
+    console.log('Fetching lead from Bitrix24...');
+    const bitrixResponse = await callBitrixApi('crm.lead.get', { id: leadId });
+
+    if (bitrixResponse?.result) {
+      // Save to MongoDB
+      await Lead.create({ data: bitrixResponse.result });
+
+      return res.json({ source: 'bitrix24', result: bitrixResponse.result });
+    } else {
+      return res.status(404).json({ error: 'Lead not found in Bitrix24' });
+    }
+
+  } catch (err) {
+    console.error("getLeadByNumber error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 
 
 
+exports.bitrixLeadButton = async (req, res) => {
+  try {
+    
+    const { leadId } = req.body; 
 
-const crmleadlist = async (req, res, next) => {
-    try {
-        const filter = req.query.filter ? JSON.parse(req.query.filter) : {};
-        const select = req.query.select ? JSON.parse(req.query.select) : [];
-        const order = req.query.order ? JSON.parse(req.query.order) : {};
-
-        const bitrixUrl = `${process.env.BITRIX_API_BASE_URL}/crm.lead.list.json`;
-
-        console.log('Calling Bitrix API:', bitrixUrl);
-
-        const response = await axios.post(bitrixUrl, {
-            filter,
-            select,
-            order
-        });
-
-        res.status(200).json({
-            success: true,
-            data: response.data.result
-        });
-    } catch (error) {
-        console.error('Bitrix API Error:', error?.response?.data || error.message);
-        res.status(500).json({ success: false, error: 'Failed to fetch CRM lead list.' });
+    if (!leadId) {
+      return res.status(400).json({ success: false, message: 'leadId is required' });
     }
+
+    const leadData = await callBitrixApi('crm.lead.get', { ID: leadId });
+
+    return res.json({
+      success: true,
+      lead: leadData.result,
+    });
+  } catch (error) {
+    console.error('Error in bitrixLeadButton:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong while fetching lead details',
+    });
+  }
 };
 
 
 
 
-const getAllLeads = async (req, res) => {
-    try {
-        const BITRIX_API_URL = `${process.env.BITRIX_API_BASE_URL}/crm.lead.list`;
-        
-        
-        const response = await axios.post(BITRIX_API_URL, {
-            auth: process.env.BITRIX_AUTH_TOKEN,
-           
-            select: ["ID", "TITLE", "STATUS_ID", "NAME", "LAST_NAME"],
-            order: { "ID": "ASC" } 
-        });
- // Return all leads
-        res.status(200).json({
-            success: true,
-            count: response.data.result.length,
-            leads: response.data.result
-        });
-
-    } catch (error) {
-        console.error("Bitrix24 API Error:", error.response?.data || error.message);
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch leads",
-            error: error.response?.data || error.message
-        });
-    }
-};
-
-
-
-const getFilteredLeads = async (req, res) => {
-    try {
-        const BITRIX_API_URL = `${process.env.BITRIX_API_BASE_URL}/crm.lead.list`;
-        
-        
-        const { 
-            filter = {}, 
-            select = ["ID", "TITLE", "STATUS_ID"],
-            order = { "ID": "ASC" } 
-        } = req.body;
-
-        
-        const response = await axios.post(BITRIX_API_URL, {
-            auth: process.env.BITRIX_AUTH_TOKEN,
-            filter,  
-            select,  
-            order   
-        });
-
-        res.status(200).json({
-            success: true,
-            count: response.data.result.length,
-            leads: response.data.result
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch leads",
-            error: error.response?.data || error.message
-        });
-    }
-};
-
-module.exports = {
-    callBitrixApi,
-    crmleadlist,
-    getAllLeads,
-    getFilteredLeads
+// Test route
+exports.testRoute = (req, res) => {
+  res.send('Bitrix24 route is working!');
 };
