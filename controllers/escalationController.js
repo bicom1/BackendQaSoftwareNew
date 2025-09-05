@@ -10,9 +10,12 @@ const createEscalation = AsyncHandler(async (req, res) => {
       ...req.body,
       audio: req.file ? req.file.path : null,
     };
+
     if (!payload.evaluatedby) {
       return res.status(400).json({ success: false, message: "Evaluated by is required" });
     }
+
+    console.log("Received from Bitrix:", payload); // ✅ Debug log
 
     const doc = await Escalation.create(payload);
 
@@ -25,6 +28,7 @@ const createEscalation = AsyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: error.message });
   }
 });
+
 
 // Get All Escalations
 const getEscalations = AsyncHandler(async (req, res) => {
