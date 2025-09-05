@@ -13,8 +13,12 @@ type: String,
 required: [false, "Email is required"],
 },
 leadID: {
-type: String,
-required: [true, "Lead ID is required"],
+  type: Number,
+  required: [true, "Lead ID is required"],
+  validate: {
+    validator: Number.isInteger,
+    message: "{VALUE} is not an integer value"
+  }
 },
 evaluatedby: {
 type: String,
