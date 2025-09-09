@@ -2,6 +2,80 @@ const { callBitrixApi } = require('../services/bitrixApi');
 const Lead = require('../models/Lead');
 const Contact = require('../models/Contact');
 const Deal = require('../models/Deal');
+const Escalation = require("../models/Escalation");
+const Evaluation = require("../models/Evaluation");
+const Marketing = require("../models/Marketing");
+
+
+exports.handleWebhook = async (req, res) => {
+  try {
+    const { type, leadID, agentName, leadSource, ...rest } = req.body;
+
+    if (!type || !leadID) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: type, leadID",
+      });
+    }
+
+    let savedData;
+
+    if (type === "escalation") {
+      savedData = await Escalation.create({
+        leadID,
+        agentName,
+        leadSource,
+        ...rest, // extra optional fields
+      });
+      return res.json({
+        success: true,
+        message: "Escalation saved via webhook",
+        data: savedData,
+      });
+    }
+
+    if (type === "evaluation") {
+      savedData = await Evaluation.create({
+        leadID,
+        agentName,
+        leadSource,
+        ...rest,
+      });
+      return res.json({
+        success: true,
+        message: "Evaluation saved via webhook",
+        data: savedData,
+      });
+    }
+
+    if (type === "marketing") {
+      savedData = await Marketing.create({
+        leadID,
+        agentName,
+        leadSource,
+        ...rest,
+      });
+      return res.json({
+        success: true,
+        message: "Marketing saved via webhook",
+        data: savedData,
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: "Invalid type. Use escalation, evaluation, or marketing",
+    });
+
+  } catch (error) {
+    console.error("Webhook Error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 
 // Get and store leads
 exports.getLeads = async (req, res) => {

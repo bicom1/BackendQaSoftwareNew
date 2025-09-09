@@ -9,6 +9,7 @@ const {
   searchLeads,
   getLeadByNumber,
   bitrixLeadButton,
+  handleWebhook,
 } = require('../controllers/bitrix24Controller');
 
 router.get('/leads', getLeads);
@@ -19,8 +20,27 @@ router.get('/user-leads/:id', getLeadByNumber);
 router.get('/search-leads', searchLeads); 
 router.get('/test', testRoute);
 router.post('/lead-button', bitrixLeadButton)
-module.exports = router;
+router.post("/webhook", handleWebhook);
 
+
+
+router.post('/webhook', async (req, res) => {
+  try {
+    const { leadID, agentName, leadsource, type } = req.body;
+
+    if (!leadID) {
+      return res.status(400).json({ success: false, message: "leadID is required" });
+    }
+
+    // TODO: Save into MongoDB (Escalation/Marketing/Evaluation model depending on "type")
+    console.log("📥 Incoming Bitrix data:", { leadID, agentName, leadsource, type });
+
+    res.json({ success: true, message: "Data received" });
+  } catch (error) {
+    console.error("Bitrix Webhook Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 
 
