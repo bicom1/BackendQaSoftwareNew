@@ -14,7 +14,7 @@ required: [false, "Email is required"],
 },
 leadID: {
   type: Number,
-  required: [true, "Lead ID is required"],
+  required: [false, "Lead ID is required"],
   validate: {
     validator: Number.isInteger,
     message: "{VALUE} is not an integer value"
