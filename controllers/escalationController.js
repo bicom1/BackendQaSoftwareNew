@@ -4,30 +4,70 @@ import AsyncHandler from 'express-async-handler';
 import Escalation from '../models/Escalation.js';
 
 // Create Escalation
-const createEscalation = AsyncHandler(async (req, res) => {
+// const createEscalation = AsyncHandler(async (req, res) => {
+//   try {
+//     const payload = {
+//       ...req.body,
+//       audio: req.file ? req.file.path : null,
+//     };
+
+//     if (!payload.evaluatedby) {
+//       return res.status(400).json({ success: false, message: "Evaluated by is required" });
+//     }
+
+//     console.log("Received from Bitrix:", payload); // ✅ Debug log
+
+//     const doc = await Escalation.create(payload);
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Escalation saved",
+//       data: doc,
+//     });
+//   } catch (error) {
+//     return res.status(400).json({ success: false, message: error.message });
+//   }
+// });
+
+const createEscalation=AsyncHandler  ("/", async (req, res) => {
   try {
-    const payload = {
-      ...req.body,
-      audio: req.file ? req.file.path : null,
-    };
+    const {
+      evaluatedby,
+      leadID,
+      agentName,
+      teamleader,
+      leadSource,
+      leadStatus,
+      escSeverity,
+      issueIden,
+      escAction,
+      documentation,
+      successmaration,
+      userrating
+    } = req.body;
 
-    if (!payload.evaluatedby) {
-      return res.status(400).json({ success: false, message: "Evaluated by is required" });
-    }
-
-    console.log("Received from Bitrix:", payload); // ✅ Debug log
-
-    const doc = await Escalation.create(payload);
-
-    return res.status(201).json({
-      success: true,
-      message: "Escalation saved",
-      data: doc,
+    // Save to DB (example)
+    const escalation = await Escalation.create({
+      evaluatedby,
+      leadID,
+      agentName,
+      teamleader,
+      leadSource,
+      leadStatus,
+      escSeverity,
+      issueIden,
+      escAction,
+      documentation,
+      successmaration,
+      userrating
     });
-  } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
+
+    res.status(201).json({ success: true, data: escalation });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
+
 
 
 // Get All Escalations
