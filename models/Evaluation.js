@@ -11,10 +11,18 @@ const evaluationSchema = new mongoose.Schema(
       type: String,
       required: [true, "field is require"],
     },
-    leadID: {    // fixed casing to 'leadID'
-      type: String,
-      required: [true, "field is require"],
-    },
+    leadID: {
+      type: Number,
+      required: [true, "Lead ID is required"],
+      validate: {
+        validator: Number.isInteger,
+        message: "{VALUE} is not an integer value"
+    }
+   },
+evaluatedby: {
+type: String,
+required: [false, "Evaluated by is required"],
+},
     agentName: {
       type: String,
       required: [true, "field is require"],
