@@ -1,6 +1,7 @@
 const Queue = require('bull');
 const Marketing = require('../models/Marketing');
 
+// Bull queue for background marketing ingestion with rate limiting
 const marketingQueue = new Queue('marketing', {
   redis: {
     url: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
@@ -12,6 +13,7 @@ const marketingQueue = new Queue('marketing', {
 });
 
 // Background processing of jobs
+// Process up to 5 jobs concurrently
 marketingQueue.process(5, async (job) => {
   try {
     console.log(`Processing job ${job.id}`);

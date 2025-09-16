@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
 
+// User schema stores auth credentials, presence, and simple session metadata
+
 const usersSchema = new mongoose.Schema({
   email: {
     type: String,

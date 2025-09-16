@@ -2,6 +2,12 @@ require('dotenv').config();
 const axios = require('axios');
 const { sleep } = require('../helpers');
 
+/**
+ * ZohoService
+ * Lightweight client for Zoho APIs with OAuth token refresh, retry logic,
+ * and simple helpers for Bookings endpoints. Designed to be reused as a
+ * singleton across the app.
+ */
 class ZohoService {
   constructor() {
     this.initialize();
@@ -11,6 +17,7 @@ class ZohoService {
     this.lastTokenRefreshTime = null;
   }
 
+  /** Initialize internal state and compute base URL by datacenter */
   initialize() {
     this.validateEnvironment();
     this.accessToken = null;
@@ -18,6 +25,7 @@ class ZohoService {
     this.baseUrl = this.getDatacenterUrl();
   }
 
+  /** Ensure required environment variables are present */
   validateEnvironment() {
     const requiredVars = [
       'ZOHO_CLIENT_ID',
@@ -37,6 +45,7 @@ class ZohoService {
     this.refreshToken = process.env.ZOHO_REFRESH_TOKEN;
   }
 
+  /** Infer datacenter base URL from client id prefix */
   getDatacenterUrl() {
     const prefix = this.clientId.substring(0, 5);
     const datacenters = {
@@ -47,6 +56,10 @@ class ZohoService {
     return datacenters[prefix] || datacenters['1000.'];
   }
 
+  /**
+   * Refresh the OAuth access token (serialized via tokenRefreshPromise)
+   * Returns the fresh access token string.
+   */
   async refreshAccessToken() {
     // Prevent too frequent refresh attempts
     if (this.lastTokenRefreshTime && 
@@ -89,6 +102,7 @@ class ZohoService {
     }
   }
 
+  /** Extract useful error fields from axios error object */
   parseTokenError(error) {
     return {
       status: error.response?.status,
@@ -99,6 +113,7 @@ class ZohoService {
     };
   }
 
+  /** Human-readable message for common token failures */
   getTokenErrorMessage(errorInfo) {
     if (errorInfo.error === 'invalid_client') {
       return 'Invalid client credentials. Verify ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET.';
@@ -112,6 +127,11 @@ class ZohoService {
     return `Token refresh failed: ${errorInfo.message}`;
   }
 
+  /**
+   * Perform an axios request with Authorization header and retries on 401.
+   * @param {import('axios').AxiosRequestConfig} config
+   * @param {number} attempt
+   */
   async makeAuthenticatedRequest(config, attempt = 1) {
     if (attempt > this.maxRetries) {
       throw new Error(`Max retries (${this.maxRetries}) exceeded`);
@@ -150,6 +170,7 @@ class ZohoService {
     }
   }
 
+  /** Quick validation that current credentials can obtain a token */
   async verifyCredentials() {
     try {
       await this.refreshAccessToken();
@@ -164,6 +185,10 @@ class ZohoService {
     }
   }
 
+  /**
+   * Provide actionable resolution steps for common token errors
+   * to surface helpful guidance to API consumers.
+   */
   getTokenSolution(errorMessage) {
     if (errorMessage.includes('invalid_client')) {
       return [
@@ -184,6 +209,7 @@ class ZohoService {
   }
 
   // API methods
+  /** Fetch a single appointment by booking id */
   async getAppointment(bookingId) {
     return this.makeAuthenticatedRequest({
       method: 'get',
@@ -192,6 +218,7 @@ class ZohoService {
     });
   }
 
+  /** List appointments with optional filters */
   async getAllAppointments(params = {}) {
     return this.makeAuthenticatedRequest({
       method: 'get',

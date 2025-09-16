@@ -1,7 +1,11 @@
 import AsyncHandler from 'express-async-handler';
 import Escalation from '../models/Escalation.js';
 
+// Escalations controller
+// Accepts webhook-style submissions, supports audio uploads, and provides CRUD + filters
 
+
+// Create a new escalation (merges query/body; handles optional audio)
 const createEscalation = AsyncHandler(async (req, res) => {
   try {
     const payload = {
@@ -34,6 +38,7 @@ const createEscalation = AsyncHandler(async (req, res) => {
 
 
 
+// Get all escalations (populates minimal owner info)
 const getEscalations = AsyncHandler(async (req, res) => {
   try {
     const escalations = await Escalation.find().populate("owner", "name email");
@@ -44,12 +49,14 @@ const getEscalations = AsyncHandler(async (req, res) => {
 });
 
 
+// Get a single escalation by id
 const getEscalationById = AsyncHandler(async (req, res) => {
   const doc = await Escalation.findById(req.params.id);
   if (!doc) return res.status(404).json({ success: false, message: "Not found" });
   res.json({ success: true, data: doc });
 });
 
+// Query escalations by agent-related field (agentName | evaluatedby | useremail)
 const getAgentName = AsyncHandler(async (req, res) => {
   try {
     const { agentEmail } = req.params; 
@@ -93,6 +100,7 @@ const getAgentName = AsyncHandler(async (req, res) => {
   }
 });
 
+// Flexible search for escalations by id/leadID/agent/evaluatedby for Bitrix integration
 const getEscalationByIdBitrix = AsyncHandler(async (req, res) => {
   const { identifier } = req.params;
   const { by } = req.query; 
@@ -129,6 +137,7 @@ const getEscalationByIdBitrix = AsyncHandler(async (req, res) => {
 });
 
 
+// Update an escalation and optionally replace audio file path
 const updateEscalation = AsyncHandler(async (req, res) => {
   const updateData = { ...req.body };
   if (req.file) updateData.audio = req.file.path;
@@ -139,6 +148,7 @@ const updateEscalation = AsyncHandler(async (req, res) => {
   res.json({ success: true, message: "Escalation updated", data: updated });
 });
 
+// Delete an escalation by id
 const deleteEscalation = AsyncHandler(async (req, res) => {
   const deleted = await Escalation.findByIdAndDelete(req.params.id);
   if (!deleted) return res.status(404).json({ success: false, message: "Escalation not found" });
@@ -146,12 +156,14 @@ const deleteEscalation = AsyncHandler(async (req, res) => {
 });
 
 
+// Total escalations count
 const totalescalationscounts = AsyncHandler(async (req, res) => {
   const count = await Escalation.countDocuments();
   res.status(200).json({ success: true, count });
 });
 
 
+// Filter escalations by date range with optional teamleader/agentName regex
 const datefilterescalation = AsyncHandler(async (req, res) => {
   const { startDate, endDate, agentName, teamleader } = req.query;
 
@@ -185,6 +197,7 @@ const datefilterescalation = AsyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: filteredData });
 });
 
+// List escalations by owning user id
 const getEscalationsByOwner = AsyncHandler(async (req, res) => {
   const { ownerId } = req.params;
   const escalation = await Escalation.find({ owner: ownerId });
@@ -196,6 +209,7 @@ const getEscalationsByOwner = AsyncHandler(async (req, res) => {
   });
 });
 
+// List escalations by agentName (case-insensitive exact match)
 const getEscalationsByAgentName = AsyncHandler(async (req, res) => {
   try {
     const { agentName } = req.params;
