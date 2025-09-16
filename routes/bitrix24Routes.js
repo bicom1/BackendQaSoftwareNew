@@ -12,7 +12,7 @@ const {
   handleWebhook,
 } = require('../controllers/bitrix24Controller');
 const Escalation = require('../models/Escalation');
-const { getEscalationByIdBitrix, createEscalation } = require('../controllers/escalationController');
+const { getEscalationByIdBitrix, createEscalation, getAgentName } = require('../controllers/escalationController');
 
 router.get('/leads', getLeads);
 router.get('/contacts', getContacts);
@@ -23,8 +23,11 @@ router.get('/search-leads', searchLeads);
 router.get('/test', testRoute);
 router.post('/lead-button', bitrixLeadButton)
 // router.post("/webhook", handleWebhook);
-router.get("/:id", getEscalationByIdBitrix); 
+// router.get("/:id", getEscalationByIdBitrix); 
+router.get("/:identifier", getEscalationByIdBitrix);
 router.post('/webhook', createEscalation);
+router.get('/:agentEmail', getAgentName)
+// In your bitrix24Routes.js file
 
 
 
