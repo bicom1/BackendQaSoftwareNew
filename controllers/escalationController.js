@@ -1,181 +1,227 @@
-import express from 'express';
-import mongoose from 'mongoose';
 import AsyncHandler from 'express-async-handler';
 import Escalation from '../models/Escalation.js';
 
-// Create Escalation
+
 const createEscalation = AsyncHandler(async (req, res) => {
   try {
     const payload = {
+      ...req.query,
       ...req.body,
       audio: req.file ? req.file.path : null,
     };
 
+    console.log("Webhook Payload:", payload);
+
+    // Default value if not provided
     if (!payload.evaluatedby) {
-      return res.status(400).json({ success: false, message: "Evaluated by is required" });
+      payload.evaluatedby = "";
+      payload.useremail= "";
     }
 
-    console.log("Received from Bitrix:", payload); // ✅ Debug log
-
+    // Save to DB
     const doc = await Escalation.create(payload);
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Escalation saved",
       data: doc,
     });
-  } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
+  } catch (err) {
+    console.error("Webhook error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
 
-// Get All Escalations
+
 const getEscalations = AsyncHandler(async (req, res) => {
   try {
     const escalations = await Escalation.find().populate("owner", "name email");
-    return res.json({ success: true, data: escalations });
+    res.json({ success: true, data: escalations });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Get Escalation by ID
+
 const getEscalationById = AsyncHandler(async (req, res) => {
-  try {
-    const doc = await Escalation.findById(req.params.id).populate("owner", "name email");
-    if (!doc) return res.status(404).json({ success: false, message: "Escalation not found" });
-    return res.json({ success: true, data: doc });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
+  const doc = await Escalation.findById(req.params.id);
+  if (!doc) return res.status(404).json({ success: false, message: "Not found" });
+  res.json({ success: true, data: doc });
 });
 
-// Update Escalation
-const updateEscalation = AsyncHandler(async (req, res) => {
+const getAgentName = AsyncHandler(async (req, res) => {
   try {
-    const updateData = { ...req.body };
-    if (req.file) updateData.audio = req.file.path;
-
-    const updated = await Escalation.findByIdAndUpdate(req.params.id, updateData, { new: true });
-    if (!updated) return res.status(404).json({ success: false, message: "Escalation not found" });
-
-    return res.json({ success: true, message: "Escalation updated", data: updated });
+    const { agentEmail } = req.params; 
+    const { by = 'agentName' } = req.query; 
+    
+    if (!agentEmail) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Agent email is required" 
+      });
+    }
+    
+    let query = {};
+    if (by === 'agentName') {
+      query.agentName = agentEmail;
+    } else if (by === 'evaluatedby') {
+      query.evaluatedby = agentEmail;
+    } else if (by === 'useremail') {
+      query.useremail = agentEmail;
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid 'by' parameter. Use 'agentName' or 'evaluatedby'" 
+      });
+    }
+    
+    // Find all escalations matching the query
+    const escalations = await Escalation.find(query);
+    
+    res.json({
+      success: true,
+      count: escalations.length,
+      data: escalations
+    });
   } catch (error) {
-    return res.status(400).json({ success: false, message: error.message });
-  }
-});
-
-// Delete Escalation
-const deleteEscalation = AsyncHandler(async (req, res) => {
-  try {
-    const deleted = await Escalation.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ success: false, message: "Escalation not found" });
-    return res.json({ success: true, message: "Escalation deleted" });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// First declare the function
-const totalescalationscounts = AsyncHandler(async (req, res) => {
-  try {
-    const count = await Escalation.countDocuments();
-    res.status(200).json({ success: true, count });
-  } catch (error) {
+    console.error("Error fetching agent data:", error);
     res.status(500).json({ 
       success: false, 
-      message: "Error counting escalations",
-      error: error.message 
+      message: error.message 
     });
   }
 });
 
+const getEscalationByIdBitrix = AsyncHandler(async (req, res) => {
+  const { identifier } = req.params;
+  const { by } = req.query; 
 
-const datefilterescalation = async (req, res) => {
-  try {
-    const { startDate, endDate, agentName, teamleader } = req.query;
+  let query = {};
 
-    if (!startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        message: "Both startDate and endDate are required.",
-      });
-    }
-
-    const formattedStartDate = new Date(startDate);
-    const formattedEndDate = new Date(endDate);
-
-    if (isNaN(formattedStartDate.getTime()) || isNaN(formattedEndDate.getTime())) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid date format. Use YYYY-MM-DD.",
-      });
-    }
-
-    const query = {
-      createdAt: {
-        $gte: new Date(formattedStartDate.setUTCHours(0, 0, 0, 0)),
-        $lt: new Date(formattedEndDate.setUTCHours(23, 59, 59, 999)),
-      },
+  if (by === 'leadID') {
+    query = { leadID: identifier };
+  } else if (by === 'agentName') {
+    query = { agentName: identifier };
+  } else if (by === 'evaluatedby') {
+    query = { evaluatedby: identifier };  
+  } else {
+    query = { 
+      $or: [
+        { _id: identifier },
+        { leadID: identifier },
+        { evaluatedby: identifier },
+        { agentName: identifier }
+      ]
     };
+  }
 
-    if (teamleader && teamleader.trim() !== "") {
-      query.teamleader = { $regex: new RegExp(teamleader, "i") };
-    }
-
-    if (agentName && agentName.trim() !== "") {
-      query.agentName = { $regex: new RegExp(agentName, "i") };
-    }
-
-    const filteredData = await Escalation.find(query);
-
-    if (!filteredData || filteredData.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No data found for the selected filters.",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: filteredData,
-    });
-  } catch (error) {
-    console.error("Error in datefilterescalation:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error. Please try again later.",
+  const docs = await Escalation.find(query).populate("owner", "name email");
+  
+  if (!docs || docs.length === 0) {
+    return res.status(404).json({ 
+      success: false, 
+      message: "No escalations found" 
     });
   }
-};
 
-export const getEscalationsByOwner = async (req, res) => {
+  res.json({ success: true, data: docs });
+});
+
+
+const updateEscalation = AsyncHandler(async (req, res) => {
+  const updateData = { ...req.body };
+  if (req.file) updateData.audio = req.file.path;
+
+  const updated = await Escalation.findByIdAndUpdate(req.params.id, updateData, { new: true });
+  if (!updated) return res.status(404).json({ success: false, message: "Escalation not found" });
+
+  res.json({ success: true, message: "Escalation updated", data: updated });
+});
+
+const deleteEscalation = AsyncHandler(async (req, res) => {
+  const deleted = await Escalation.findByIdAndDelete(req.params.id);
+  if (!deleted) return res.status(404).json({ success: false, message: "Escalation not found" });
+  res.json({ success: true, message: "Escalation deleted" });
+});
+
+
+const totalescalationscounts = AsyncHandler(async (req, res) => {
+  const count = await Escalation.countDocuments();
+  res.status(200).json({ success: true, count });
+});
+
+
+const datefilterescalation = AsyncHandler(async (req, res) => {
+  const { startDate, endDate, agentName, teamleader } = req.query;
+
+  if (!startDate || !endDate) {
+    return res.status(400).json({ success: false, message: "Both startDate and endDate are required." });
+  }
+
+  const formattedStartDate = new Date(startDate);
+  const formattedEndDate = new Date(endDate);
+
+  if (isNaN(formattedStartDate.getTime()) || isNaN(formattedEndDate.getTime())) {
+    return res.status(400).json({ success: false, message: "Invalid date format. Use YYYY-MM-DD." });
+  }
+
+  const query = {
+    createdAt: {
+      $gte: new Date(formattedStartDate.setUTCHours(0, 0, 0, 0)),
+      $lt: new Date(formattedEndDate.setUTCHours(23, 59, 59, 999)),
+    },
+  };
+
+  if (teamleader) query.teamleader = { $regex: new RegExp(teamleader, "i") };
+  if (agentName) query.agentName = { $regex: new RegExp(agentName, "i") };
+
+  const filteredData = await Escalation.find(query);
+
+  if (!filteredData.length) {
+    return res.status(404).json({ success: false, message: "No data found for the selected filters." });
+  }
+
+  res.status(200).json({ success: true, data: filteredData });
+});
+
+const getEscalationsByOwner = AsyncHandler(async (req, res) => {
+  const { ownerId } = req.params;
+  const escalation = await Escalation.find({ owner: ownerId });
+  res.status(200).json({
+    success: true,
+    ownerId,
+    total: escalation.length,
+    data: escalation,
+  });
+});
+
+const getEscalationsByAgentName = AsyncHandler(async (req, res) => {
   try {
-    const { ownerId } = req.params;
+    const { agentName } = req.params;
 
-    const escalation = await Escalation.find({ owner: ownerId });
+    // case-insensitive search
+    const escalations = await Escalation.find({
+      agentName: { $regex: new RegExp(`^${agentName}$`, "i") }
+    }).sort({ createdAt: -1 });
 
-    res.status(200).json({
-      success: true,
-      ownerId,
-      total: escalation.length,
-      data: escalation,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(200).json({ success: true, data: escalations });
+  } catch (error) {
+    console.error("Error fetching escalations by agentName:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
-};
-
-
-
+});
 
 export {
   createEscalation,
   getEscalations,
   getEscalationById,
+  getEscalationByIdBitrix,
   updateEscalation,
   deleteEscalation,
   totalescalationscounts,
-  datefilterescalation
+  datefilterescalation,
+  getEscalationsByOwner,
+  getAgentName,
+  getEscalationsByAgentName
 };

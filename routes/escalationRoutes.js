@@ -8,7 +8,8 @@ const {
   deleteEscalation,
   totalescalationscounts,
   datefilterescalation,
-  getEscalationsByOwner
+  getEscalationsByOwner,
+  getEscalationsByAgentName
 } = require("../controllers/escalationController");
 
 const router = express.Router();
@@ -36,6 +37,7 @@ router.get("/totalescalationscounts", totalescalationscounts);
 router.get('/datefiltereescalation', datefilterescalation);
 router.post("/", upload.single("audio"), createEscalation);
 router.get("/owner/:ownerId", getEscalationsByOwner);
+router.get("/agent/:agentName", getEscalationsByAgentName);
 router.get("/", getEscalations);
 router.get("/:id", getEscalationById);
 router.put("/:id", upload.single("audio"), updateEscalation);

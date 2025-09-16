@@ -11,6 +11,8 @@ const {
   bitrixLeadButton,
   handleWebhook,
 } = require('../controllers/bitrix24Controller');
+const Escalation = require('../models/Escalation');
+const { getEscalationByIdBitrix, createEscalation, getAgentName } = require('../controllers/escalationController');
 
 router.get('/leads', getLeads);
 router.get('/contacts', getContacts);
@@ -20,27 +22,17 @@ router.get('/user-leads/:id', getLeadByNumber);
 router.get('/search-leads', searchLeads); 
 router.get('/test', testRoute);
 router.post('/lead-button', bitrixLeadButton)
-router.post("/webhook", handleWebhook);
+// router.post("/webhook", handleWebhook);
+// router.get("/:id", getEscalationByIdBitrix); 
+router.get("/:identifier", getEscalationByIdBitrix);
+router.post('/webhook', createEscalation);
+router.get('/:agentEmail', getAgentName)
+// In your bitrix24Routes.js file
 
 
 
-router.post('/webhook', async (req, res) => {
-  try {
-    const { leadID, agentName, leadsource, type } = req.body;
 
-    if (!leadID) {
-      return res.status(400).json({ success: false, message: "leadID is required" });
-    }
-
-    // TODO: Save into MongoDB (Escalation/Marketing/Evaluation model depending on "type")
-    console.log("📥 Incoming Bitrix data:", { leadID, agentName, leadsource, type });
-
-    res.json({ success: true, message: "Data received" });
-  } catch (error) {
-    console.error("Bitrix Webhook Error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+module.exports = router;
 
 
 
