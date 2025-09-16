@@ -1,9 +1,5 @@
 {
   "openapi": "./openapi.json",
-  "guides": "./guides",
   "theme": "default",
-  "port": 3000,
-  "backend": {
-    "url": "http://localhost:3001"
-  }
+  "port": 3000
 }
