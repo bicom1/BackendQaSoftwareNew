@@ -6,8 +6,18 @@ const redis = require('redis');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
+const { apiReference } = require('@scalar/express-api-reference');
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+app.use(
+        '/api-docs',
+        apiReference({
+            // Your configuration goes here, e.g., URL to your OpenAPI document
+            url: '/openapi.json',
+        }),
+    );
+
 
 // Environment validation
 const requiredEnvVars = ['MONGO_URL'];
