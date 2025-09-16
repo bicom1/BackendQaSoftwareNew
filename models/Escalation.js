@@ -31,7 +31,7 @@ required: [false, "Agent name is required"],
 teamleader: {
 type: String,
 },
-leadSource: {
+leadsource: {
 type: String,
 },
 leadStatus: {

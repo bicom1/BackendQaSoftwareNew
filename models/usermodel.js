@@ -20,12 +20,63 @@ const usersSchema = new mongoose.Schema({
   role: {
     type: String,
   },
-},{
-    timestamps: true,
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  lastActive: {
+    type: Date,
+    default: Date.now
+  },
+  socketId: {
+    type: String,
+    default: null
+  },
+  loginCount: {
+    type: Number,
+    default: 0
+  },
+  currentSession: {
+    token: String,
+    expiresAt: Date,
+    ipAddress: String,
+    userAgent: String
+  },
+  status: {
+    type: String,
+    enum: ['online', 'offline', 'away', 'busy'],
+    default: 'offline'
+  }
+}, {
+  timestamps: true,
 });
 
+// Index for better query performance
+usersSchema.index({ isOnline: 1 });
+usersSchema.index({ lastActive: 1 });
+usersSchema.index({ status: 1 });
 
+// Method to update user activity
+usersSchema.methods.updateActivity = function() {
+  this.lastActive = new Date();
+  return this.save();
+};
+
+// Method to set user online
+usersSchema.methods.setOnline = function(socketId = null) {
+  this.isOnline = true;
+  this.status = 'online';
+  this.lastActive = new Date();
+  if (socketId) this.socketId = socketId;
+  return this.save();
+};
+
+// Method to set user offline
+usersSchema.methods.setOffline = function() {
+  this.isOnline = false;
+  this.status = 'offline';
+  this.socketId = null;
+  return this.save();
+};
 
 module.exports = mongoose.model("User", usersSchema);
-
-

@@ -14,7 +14,8 @@ const createEscalation = AsyncHandler(async (req, res) => {
 
     // Default value if not provided
     if (!payload.evaluatedby) {
-      payload.evaluatedby = "System";
+      payload.evaluatedby = "";
+      payload.useremail= "";
     }
 
     // Save to DB
@@ -49,11 +50,82 @@ const getEscalationById = AsyncHandler(async (req, res) => {
   res.json({ success: true, data: doc });
 });
 
+const getAgentName = AsyncHandler(async (req, res) => {
+  try {
+    const { agentEmail } = req.params; 
+    const { by = 'agentName' } = req.query; 
+    
+    if (!agentEmail) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Agent email is required" 
+      });
+    }
+    
+    let query = {};
+    if (by === 'agentName') {
+      query.agentName = agentEmail;
+    } else if (by === 'evaluatedby') {
+      query.evaluatedby = agentEmail;
+    } else if (by === 'useremail') {
+      query.useremail = agentEmail;
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid 'by' parameter. Use 'agentName' or 'evaluatedby'" 
+      });
+    }
+    
+    // Find all escalations matching the query
+    const escalations = await Escalation.find(query);
+    
+    res.json({
+      success: true,
+      count: escalations.length,
+      data: escalations
+    });
+  } catch (error) {
+    console.error("Error fetching agent data:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
 
 const getEscalationByIdBitrix = AsyncHandler(async (req, res) => {
-  const doc = await Escalation.findById(req.params.id).populate("owner", "name email");
-  if (!doc) return res.status(404).json({ success: false, message: "Escalation not found" });
-  res.json({ success: true, data: doc });
+  const { identifier } = req.params;
+  const { by } = req.query; 
+
+  let query = {};
+
+  if (by === 'leadID') {
+    query = { leadID: identifier };
+  } else if (by === 'agentName') {
+    query = { agentName: identifier };
+  } else if (by === 'evaluatedby') {
+    query = { evaluatedby: identifier };  
+  } else {
+    query = { 
+      $or: [
+        { _id: identifier },
+        { leadID: identifier },
+        { evaluatedby: identifier },
+        { agentName: identifier }
+      ]
+    };
+  }
+
+  const docs = await Escalation.find(query).populate("owner", "name email");
+  
+  if (!docs || docs.length === 0) {
+    return res.status(404).json({ 
+      success: false, 
+      message: "No escalations found" 
+    });
+  }
+
+  res.json({ success: true, data: docs });
 });
 
 
@@ -89,7 +161,6 @@ const datefilterescalation = AsyncHandler(async (req, res) => {
 
   const formattedStartDate = new Date(startDate);
   const formattedEndDate = new Date(endDate);
-
   if (isNaN(formattedStartDate.getTime()) || isNaN(formattedEndDate.getTime())) {
     return res.status(400).json({ success: false, message: "Invalid date format. Use YYYY-MM-DD." });
   }
@@ -124,6 +195,23 @@ const getEscalationsByOwner = AsyncHandler(async (req, res) => {
   });
 });
 
+const getEscalationsByAgentName = AsyncHandler(async (req, res) => {
+  try {
+    const { agentName } = req.params;
+
+    // case-insensitive search
+    const escalations = await Escalation.find({
+      agentName: { $regex: new RegExp(`^${agentName}$`, "i") }
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: escalations });
+  } catch (error) {
+    console.error("Error fetching escalations by agentName:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+
+});
+
 export {
   createEscalation,
   getEscalations,
@@ -133,5 +221,8 @@ export {
   deleteEscalation,
   totalescalationscounts,
   datefilterescalation,
-  getEscalationsByOwner
+  getEscalationsByOwner,
+  getAgentName,
+  getEscalationsByAgentName
+
 };
