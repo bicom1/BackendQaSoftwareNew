@@ -161,7 +161,6 @@ const datefilterescalation = AsyncHandler(async (req, res) => {
 
   const formattedStartDate = new Date(startDate);
   const formattedEndDate = new Date(endDate);
-
   if (isNaN(formattedStartDate.getTime()) || isNaN(formattedEndDate.getTime())) {
     return res.status(400).json({ success: false, message: "Invalid date format. Use YYYY-MM-DD." });
   }
@@ -210,6 +209,7 @@ const getEscalationsByAgentName = AsyncHandler(async (req, res) => {
     console.error("Error fetching escalations by agentName:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
+
 });
 
 export {
@@ -224,4 +224,5 @@ export {
   getEscalationsByOwner,
   getAgentName,
   getEscalationsByAgentName
+
 };
