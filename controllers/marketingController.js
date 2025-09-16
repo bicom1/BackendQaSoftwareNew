@@ -3,6 +3,9 @@ const marketingModel = require("../models/Marketing");
 const marketingQueue = require("../queues/marketingQueue");
 const AsyncHandler = require('express-async-handler');
 
+// Marketing controller handles CRUD and batch ingestion via Bull queue
+
+/** Create a single marketing entry and enqueue for background processing */
 exports.createMarketing = async (req, res) => {
   try {
     const marketingDate = new Date();
@@ -53,6 +56,7 @@ exports.createMarketing = async (req, res) => {
 // @desc    Create bulk marketing entries
 // @route   POST /api/marketing/bulk
 // @access  Private
+/** Insert or enqueue many marketing entries at once */
 exports.createBulkMarketing = async (req, res) => {
   try {
     const { entries } = req.body;
@@ -102,6 +106,7 @@ exports.createBulkMarketing = async (req, res) => {
 // @desc    Get all marketing evaluations
 // @route   GET /api/marketing/getevaluations
 // @access  Private
+/** Paginated list of marketing entries, filterable by query params */
 exports.getMarketing = async (req, res) => {
   try {
     const { page = 1, limit = 10, ...filters } = req.query;
@@ -133,6 +138,7 @@ exports.getMarketing = async (req, res) => {
 // @desc    Get single marketing evaluation by ID
 // @route   GET /api/marketing/getevaluationbyid/:id
 // @access  Private
+/** Get a single marketing entry by id for the current owner */
 exports.getMarketingById = async (req, res) => {
   try {
     const evaluation = await marketingModel.findOne({
@@ -162,6 +168,7 @@ exports.getMarketingById = async (req, res) => {
 // @desc    Get queue status
 // @route   GET /api/marketing/queue/status
 // @access  Private
+/** Inspect Bull queue counts and pause state */
 exports.getQueueStatus = async (req, res) => {
   try {
     const counts = await marketingQueue.getJobCounts();
@@ -185,6 +192,7 @@ exports.getQueueStatus = async (req, res) => {
 // @desc    Update marketing evaluation
 // @route   PUT /api/marketing/evaluations/:id
 // @access  Private
+/** Update a marketing entry (owner-scoped) */
 exports.updateMarketing = async (req, res) => {
   try {
     const { leadId, teamleader, branch, source, leadQuality } = req.body;
@@ -226,6 +234,7 @@ exports.updateMarketing = async (req, res) => {
 // @desc    Delete marketing evaluation
 // @route   DELETE /api/marketing/evaluations/:id
 // @access  Private
+/** Delete a marketing entry and remove id from user's evaluationdetail */
 exports.deleteMarketing = async (req, res) => {
     try {
       const evaluation = await marketingModel.findOneAndDelete({
@@ -257,6 +266,7 @@ exports.deleteMarketing = async (req, res) => {
     }
   };
 
+  /** Total marketing count */
   exports.totalmarketingcounts = AsyncHandler(async(req,res)=>{
     const count = await marketingModel.countDocuments();
     res.status(200).json({success:true,count})

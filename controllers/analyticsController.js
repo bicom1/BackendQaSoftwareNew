@@ -1,3 +1,4 @@
+// Aggregated analytics across Users, Evaluations, Escalations, and Marketing
 const User = require('../models/usermodel');
 const Evaluation = require('../models/Evaluation');
 const Escalation = require('../models/Escalation');
@@ -30,6 +31,10 @@ const getDateFilter = (range) => {
   return { createdAt: { $gte: from } };
 };
 
+/**
+ * GET /api/analytics/overview?range=7d|30d|month|quarter
+ * Returns top-level KPIs and small samples for dashboard cards.
+ */
 exports.getOverviewAnalytics = async (req, res) => {
   try {
     const range = req.query.range || ''; // optional
@@ -140,6 +145,7 @@ exports.getOverviewAnalytics = async (req, res) => {
   }
 };
 
+/** Detailed evaluation analytics (counts, average, distributions) */
 exports.getEvaluationAnalytics = async (req, res) => {
     try {
       const total = await Evaluation.countDocuments();
@@ -180,6 +186,7 @@ exports.getEvaluationAnalytics = async (req, res) => {
   };
   
   // /api/analytics/escalations
+  /** Severity, issue distribution, and latest escalations */
   exports.getEscalationAnalytics = async (req, res) => {
     try {
       const total = await Escalation.countDocuments();
@@ -209,6 +216,7 @@ exports.getEvaluationAnalytics = async (req, res) => {
   };
   
   // /api/analytics/marketing
+  /** Lead quality and source distributions and latest items */
   exports.getMarketingAnalytics = async (req, res) => {
     try {
       const total = await Marketing.countDocuments();
