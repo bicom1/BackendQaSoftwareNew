@@ -1,3 +1,10 @@
+/**
+ * Application entrypoint
+ * - Loads environment, connects MongoDB and Redis
+ * - Boots Express with security middleware and CORS
+ * - Mounts feature routes (users, evaluations, escalations, marketing, analytics, Bitrix24)
+ * - Initializes and exposes cron jobs management endpoints
+ */
 require('dotenv').config();
 const express = require('express');
 const colors = require('colors');
@@ -66,8 +73,8 @@ const connectDB = async () => {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: "http://localhost:5173", 
-  // origin:"https://qasoftwaretesting.vercel.app",
+  // origin: "http://localhost:5173", 
+  origin:"https://qasoftwaretesting.vercel.app",
   credentials: true
 }));
 app.use(express.json());
@@ -82,12 +89,19 @@ app.use((req, res, next) => {
 });
 
 // Routes
+// User auth/profile + presence tracking
 app.use('/api/users', require('./routes/userRoutes'));
+// Bitrix24 integration and webhook endpoints
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));
+// Quality evaluations CRUD + bulk queue processing
 app.use('/api/evaluations', require('./routes/evaluationRoutes'));
+// Escalations CRUD (supports audio uploads)
 app.use('/api/escalations', require('./routes/escalationRoutes'));
+// Marketing submissions CRUD + queue
 app.use('/api/marketing', require('./routes/marketingRoutes'));
+// Teamlead (reserved for team leader features)
 app.use('/api/teamlead', require('./routes/teamleadRoutes'));
+// Cross-domain analytics aggregations
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 // app.use('/api/agents', require('./routes/agentsRoutes'));
 

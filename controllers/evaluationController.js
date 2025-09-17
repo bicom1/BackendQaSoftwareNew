@@ -7,9 +7,13 @@ import evaluationQueue from '../queues/evaluationQueue.js';
 import AsyncHandler from 'express-async-handler';
 import Evaluation from '../models/Evaluation.js';
 
+// Evaluations controller
+// Provides CRUD, bulk ingestion via Bull queue, and Redis caching for reads
 
 
 
+
+// Create single evaluation document
 const createEvaluation = async (req, res) => {
   try {
     const evaluation = await Evaluation.create(req.body);
@@ -20,6 +24,7 @@ const createEvaluation = async (req, res) => {
 };
 
 
+// Enqueue multiple evaluations for background processing
 const createBulkEvaluations = async (req, res) => {
   try {
     const evaluations = req.body;
@@ -67,6 +72,7 @@ const createBulkEvaluations = async (req, res) => {
 };
 
 
+// List evaluations with filtering + pagination (caches first-page filtered results)
 const getEvaluations = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -114,6 +120,7 @@ const getEvaluations = async (req, res) => {
   }
 };
 
+// Read single evaluation with Redis cache fallback to MongoDB
 const getEvaluationById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -158,6 +165,7 @@ const getEvaluationById = async (req, res) => {
   }
 };
 
+// Update mutable fields of an evaluation and refresh cache
 const updateEvaluation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -192,6 +200,7 @@ const updateEvaluation = async (req, res) => {
   }
 };
 
+// Delete evaluation and evict cache
 const deleteEvaluation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -221,6 +230,7 @@ const deleteEvaluation = async (req, res) => {
 };
 
 // Health check for queue
+// Queue health status endpoint
 const getQueueStatus = async (req, res) => {
   try {
     const counts = await Promise.all([
@@ -251,11 +261,13 @@ const getQueueStatus = async (req, res) => {
   }
 };
 
+// Total count of evaluations
 const totalevaluationcounts = AsyncHandler(async(req,res)=>{
   const count = await Evaluation.countDocuments();
   res.status(200).json({success:true,count})
 })
 
+// Filter evaluations by date range and optional agent/teamleader
 const datefilterevaluation = async (req, res) => {
   try {
     const { startDate, endDate, agentName,  teamleader} = req.query;
@@ -338,6 +350,7 @@ const datefilterevaluation = async (req, res) => {
 // };
 
 
+// List evaluations belonging to a specific owner id
 const getEvaluationsByOwner = AsyncHandler(async (req, res) => {
   const { ownerId } = req.params;
 

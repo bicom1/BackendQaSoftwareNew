@@ -2,6 +2,7 @@ const Queue = require('bull');
 const mongoose = require('mongoose');
 const Evaluation = require('../models/Evaluation');
 
+// Bull queue for background evaluation ingestion with rate limiting
 const evaluationQueue = new Queue('evaluation', {
   redis: {
     url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
@@ -12,6 +13,7 @@ const evaluationQueue = new Queue('evaluation', {
   }
 });
 
+// Process up to 5 jobs concurrently
 evaluationQueue.process(5, async (job) => {
   try {
     const data = job.data;

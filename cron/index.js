@@ -2,12 +2,10 @@ require('dotenv').config();
 const cron = require('node-cron');
 const colors = require('colors');
 
-// This object will hold references to our scheduled tasks for management
+// Registry of scheduled tasks for inspection and lifecycle management
 const scheduledTasks = {};
 
-/**
- * Initializes all defined cron jobs
- */
+/** Initialize all defined cron jobs */
 const initCronJobs = () => {
   console.log('🕒 Initializing Cron Jobs...'.yellow);
 

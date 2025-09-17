@@ -1,4 +1,5 @@
 // controllers/userController.js
+// Handles user registration, authentication, profile, presence, and stats
 const AsyncHandler = require('express-async-handler');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -6,11 +7,16 @@ const User = require('../models/usermodel');
 const { sendPasswordResetEmail } = require('../services/emailService');
 
 
+/** Generate a signed JWT for the given user id */
 const generateToken = (id, expiresIn = '1d') => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn });
 };
 
 
+/**
+ * Register a new user
+ * Body: { name, email, password, role }
+ */
 const registerUser = AsyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -51,6 +57,9 @@ const registerUser = AsyncHandler(async (req, res) => {
 });
 
 
+/**
+ * User login with email/password. Increments loginCount and sets presence online.
+ */
 const loginUser = AsyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -88,6 +97,9 @@ const loginUser = AsyncHandler(async (req, res) => {
 });
 
 
+/**
+ * Send password reset link (JWT 15m) to user if exists (no-leak response)
+ */
 const forgotPassword = AsyncHandler(async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
@@ -106,6 +118,9 @@ const forgotPassword = AsyncHandler(async (req, res) => {
 });
 
 
+/**
+ * Reset password with provided token and new password
+ */
 const resetPassword = AsyncHandler(async (req, res) => {
   const { token, newPassword } = req.body;
 
@@ -140,6 +155,7 @@ const resetPassword = AsyncHandler(async (req, res) => {
 });
 
 
+/** Return current authenticated user profile (sans password) */
 const findMyProfile = AsyncHandler(async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Not authorized, token failed' });
@@ -155,6 +171,7 @@ const findMyProfile = AsyncHandler(async (req, res) => {
 });
 
 
+/** Update user status: online | offline | away | busy */
 const updateUserStatus = AsyncHandler(async (req, res) => {
   const { status } = req.body;
   
@@ -189,6 +206,7 @@ const updateUserStatus = AsyncHandler(async (req, res) => {
 });
 
 
+/** Touch lastActive timestamp to now */
 const updateUserActivity = AsyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (!user) {
@@ -205,6 +223,7 @@ const updateUserActivity = AsyncHandler(async (req, res) => {
 });
 
 
+/** Explicitly set user online and optionally store socketId */
 const setUserOnline = AsyncHandler(async (req, res) => {
   const { socketId } = req.body;
   const user = await User.findById(req.user._id);
@@ -229,6 +248,7 @@ const setUserOnline = AsyncHandler(async (req, res) => {
 });
 
 
+/** Explicitly set user offline */
 const setUserOffline = AsyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   
@@ -251,11 +271,13 @@ const setUserOffline = AsyncHandler(async (req, res) => {
 });
 
 
+/** List all users (admin contexts) without passwords */
 const getAllUsers = AsyncHandler(async (req, res) => {
   const users = await User.find({}).select('-password');
   res.status(200).json({ success: true, count: users.length, data: users });
 });
 
+/** List users with isOnline=true and select presence fields */
 const getOnlineUsers = AsyncHandler(async (req, res) => {
   const onlineUsers = await User.find({ isOnline: true }).select('name email status lastActive');
   res.status(200).json({ success: true, count: onlineUsers.length, data: onlineUsers });
@@ -263,17 +285,22 @@ const getOnlineUsers = AsyncHandler(async (req, res) => {
 
 
 
+/** Return total user count */
 const totalUserCount = AsyncHandler(async (req, res) => {
   const count = await User.countDocuments();
   res.status(200).json({ success: true, count });
 });
 
+/** Return count of online users */
 const onlineUserCount = AsyncHandler(async (req, res) => {
   const count = await User.countDocuments({ isOnline: true });
   res.status(200).json({ success: true, count });
 });
 
 
+/**
+ * Logout current user (clear cookie if present and mark offline)
+ */
 const logout = AsyncHandler(async (req, res) => {
   try {
     // Set user offline before logging out
@@ -294,6 +321,9 @@ const logout = AsyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * Aggregated stats for current user across Evaluations and Escalations
+ */
 const getUserSubmissionStats = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -359,6 +389,7 @@ const getUserSubmissionStats = async (req, res) => {
 };
 
 
+/** Aggregated stats for all users (sorted by total submissions) */
 const getAllUsersSubmissionStats = async (req, res) => {
   try {
     const usersStats = await User.aggregate([
