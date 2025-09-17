@@ -13,10 +13,6 @@ const generateToken = (id, expiresIn = '1d') => {
 };
 
 
-/**
- * Register a new user
- * Body: { name, email, password, role }
- */
 const registerUser = AsyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -39,10 +35,10 @@ const registerUser = AsyncHandler(async (req, res) => {
     email, 
     password: hashedPass, 
     role,
-    loginCount: 1 // Initialize login count
+    loginCount: 1 
   });
 
-  // Set user online after registration
+ 
   await createUser.setOnline();
 
   res.json({
@@ -57,9 +53,7 @@ const registerUser = AsyncHandler(async (req, res) => {
 });
 
 
-/**
- * User login with email/password. Increments loginCount and sets presence online.
- */
+
 const loginUser = AsyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -447,6 +441,72 @@ const getAllUsersSubmissionStats = async (req, res) => {
   }
 };
 
+const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// UPDATE user (PUT = full replace)
+const updateUser = async (req, res) => {
+  try {
+    const updated = await User.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) return res.status(404).json({ message: "User not found" });
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PATCH user (partial update)
+const patchUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Apply only the fields sent in body
+    const updated = await User.findByIdAndUpdate(
+      id,
+      { $set: req.body }, // 👈 ensures partial update
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// DELETE user
+const deleteUser = async (req, res) => {
+  try {
+    const deleted = await User.findByIdAndDelete(req.params.id);
+
+    if (!deleted) return res.status(404).json({ message: "User not found" });
+
+    res.json({ success: true, message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
 module.exports = {
   registerUser,
   loginUser,
@@ -463,5 +523,9 @@ module.exports = {
   onlineUserCount,
   logout,
   getUserSubmissionStats,
-  getAllUsersSubmissionStats
+  getAllUsersSubmissionStats,
+  getUserById,
+  patchUser,
+  deleteUser,
+  updateUser
 };
