@@ -1,10 +1,3 @@
-/**
- * Application entrypoint
- * - Loads environment, connects MongoDB and Redis
- * - Boots Express with security middleware and CORS
- * - Mounts feature routes (users, evaluations, escalations, marketing, analytics, Bitrix24)
- * - Initializes and exposes cron jobs management endpoints
- */
 require('dotenv').config();
 const express = require('express');
 const colors = require('colors');
@@ -17,13 +10,32 @@ const { apiReference } = require('@scalar/express-api-reference');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(
-        '/api-docs',
-        apiReference({
-            // Your configuration goes here, e.g., URL to your OpenAPI document
-            url: '/openapi.json',
-        }),
-    );
+app.get('/openapi.json', (req, res) => {
+  res.json(require('./openapi.json'))
+})
+
+app.use('/api-docs', apiReference({
+  url: '/openapi.json',
+  
+  // Customization
+  theme: 'purple',
+  layout: 'modern',
+  searchHotKey: 'f',
+  
+  // Features control
+  isEditable: false,               // Allow editing the spec
+  showSidebar: true,               // Show/hide sidebar
+  hideModels: false,               // Show/hide models section
+  
+  // Authentication (if your API requires it)
+  withDefaultAuthentication: true,
+  
+  // Custom content
+  metaData: {
+    title: 'My Awesome API',
+    description: 'Comprehensive API documentation',
+  }
+}))
 
 
 // Environment validation
@@ -73,8 +85,8 @@ const connectDB = async () => {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  // origin: "http://localhost:5173", 
-  origin:"https://qasoftwaretesting.vercel.app",
+  origin: "http://localhost:5173", 
+  // origin:"https://qasoftwaretesting.vercel.app",
   credentials: true
 }));
 app.use(express.json());
@@ -91,19 +103,19 @@ app.use((req, res, next) => {
 // Routes
 // User auth/profile + presence tracking
 app.use('/api/users', require('./routes/userRoutes'));
-// Bitrix24 integration and webhook endpoints
+
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));
-// Quality evaluations CRUD + bulk queue processing
+
 app.use('/api/evaluations', require('./routes/evaluationRoutes'));
-// Escalations CRUD (supports audio uploads)
+
 app.use('/api/escalations', require('./routes/escalationRoutes'));
-// Marketing submissions CRUD + queue
+
 app.use('/api/marketing', require('./routes/marketingRoutes'));
-// Teamlead (reserved for team leader features)
+
 app.use('/api/teamlead', require('./routes/teamleadRoutes'));
-// Cross-domain analytics aggregations
+
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
-// app.use('/api/agents', require('./routes/agentsRoutes'));
+
 
 // Add cron management routes (consider protecting these in production)
 app.get('/api/cron/status', (req, res) => {

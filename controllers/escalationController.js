@@ -38,7 +38,6 @@ const createEscalation = AsyncHandler(async (req, res) => {
 
 
 
-// Get all escalations (populates minimal owner info)
 const getEscalations = AsyncHandler(async (req, res) => {
   try {
     const escalations = await Escalation.find().populate("owner", "name email");
@@ -140,13 +139,23 @@ const getEscalationByIdBitrix = AsyncHandler(async (req, res) => {
 // Update an escalation and optionally replace audio file path
 const updateEscalation = AsyncHandler(async (req, res) => {
   const updateData = { ...req.body };
-  if (req.file) updateData.audio = req.file.path;
 
-  const updated = await Escalation.findByIdAndUpdate(req.params.id, updateData, { new: true });
-  if (!updated) return res.status(404).json({ success: false, message: "Escalation not found" });
+  if (req.file) updateData.audio = req.file.path;
+  if (req.body.agentName) updateData.agentName = req.body.agentName;
+
+  const updated = await Escalation.findByIdAndUpdate(
+    req.params.id,
+    updateData,
+    { new: true }
+  );
+
+  if (!updated) {
+    return res.status(404).json({ success: false, message: "Escalation not found" });
+  }
 
   res.json({ success: true, message: "Escalation updated", data: updated });
 });
+
 
 // Delete an escalation by id
 const deleteEscalation = AsyncHandler(async (req, res) => {

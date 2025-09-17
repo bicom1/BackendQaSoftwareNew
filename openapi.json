@@ -4,18 +4,32 @@
     "title": "My API",
     "version": "1.0.0"
   },
-  "servers": [
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
     {
-      "url": "http://localhost:3001"
+      "bearerAuth": []
     }
   ],
   "paths": {
     "/users": {
       "get": {
         "summary": "Get all users",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Successful response"
           }
         }
       }

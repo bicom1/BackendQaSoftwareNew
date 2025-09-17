@@ -16,6 +16,10 @@ const {
   setUserOffline,
   getOnlineUsers,
   onlineUserCount,
+  getUserById,
+  patchUser,
+  deleteUser,
+  updateUser,
 } = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const router = express.Router();
@@ -27,6 +31,7 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
 // Protected routes 
+router.get('/get-user/:id', authMiddleware, getUserById);      
 router.get('/my-profile', authMiddleware, findMyProfile);
 router.get('/getallusers', authMiddleware, getAllUsers);
 router.get("/totalusercount", authMiddleware, totalUserCount);
@@ -37,9 +42,16 @@ router.get("/online-users", authMiddleware, getOnlineUsers);
 router.get("/online-users-count", authMiddleware, onlineUserCount);
 
 // User status management routes
+router.put('/update-user/:id', authMiddleware, updateUser);       
 router.put('/update-status', authMiddleware, updateUserStatus);
 router.put('/update-activity', authMiddleware, updateUserActivity);
 router.put('/set-online', authMiddleware, setUserOnline);
 router.put('/set-offline', authMiddleware, setUserOffline);
+  
+router.patch('/patch/:id', authMiddleware, patchUser);      
+router.delete('/delete/:id', authMiddleware, deleteUser);    
+
+
+
 
 module.exports = router;
