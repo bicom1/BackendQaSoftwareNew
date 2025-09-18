@@ -38,6 +38,7 @@ const createEscalation = AsyncHandler(async (req, res) => {
 
 
 
+// Get all escalations (populates minimal owner info)
 const getEscalations = AsyncHandler(async (req, res) => {
   try {
     const escalations = await Escalation.find().populate("owner", "name email");
@@ -136,25 +137,24 @@ const getEscalationByIdBitrix = AsyncHandler(async (req, res) => {
 });
 
 
+
+
 // Update an escalation and optionally replace audio file path
 const updateEscalation = AsyncHandler(async (req, res) => {
   const updateData = { ...req.body };
+   if (req.file) updateData.audio = req.file.path;
 
-  if (req.file) updateData.audio = req.file.path;
-  if (req.body.agentName) updateData.agentName = req.body.agentName;
+   if (req.body.agentName) updateData.agentName = req.body.agentName;
 
-  const updated = await Escalation.findByIdAndUpdate(
+   const updated = await Escalation.findByIdAndUpdate(
     req.params.id,
     updateData,
     { new: true }
   );
-
-  if (!updated) {
-    return res.status(404).json({ success: false, message: "Escalation not found" });
-  }
-
+   if (!updated) { return res.status(404).json({ success: false, message: "Escalation not found" });
+  } 
   res.json({ success: true, message: "Escalation updated", data: updated });
-});
+ });
 
 
 // Delete an escalation by id
@@ -235,6 +235,27 @@ const getEscalationsByAgentName = AsyncHandler(async (req, res) => {
   }
 });
 
+const escalationPatch = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Apply only the fields sent in body
+    const updated = await Escalation.findByIdAndUpdate(
+      id,
+      { $set: req.body }, // 👈 ensures partial update
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export {
   createEscalation,
   getEscalations,
@@ -246,5 +267,6 @@ export {
   datefilterescalation,
   getEscalationsByOwner,
   getAgentName,
-  getEscalationsByAgentName
+  getEscalationsByAgentName,
+  escalationPatch
 };

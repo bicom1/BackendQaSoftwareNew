@@ -366,6 +366,26 @@ const getEvaluationsByOwner = AsyncHandler(async (req, res) => {
   });
 });
 
+const getEvaluationsByAgentName = AsyncHandler(async (req, res) => {
+  try {
+    const { agentName } = req.params;
+
+    // case-insensitive search
+    const evaluation = await Evaluation.find({
+      agentName: { $regex: new RegExp(`^${agentName}$`, "i") }
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: evaluation });
+  } catch (error) {
+    console.error("Error fetching evaluation by agentName:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
+
+
+
 
 
 
@@ -384,5 +404,6 @@ export {
   totalevaluationcounts,
   evaluationQueue,
   datefilterevaluation,
-  getEvaluationsByOwner
+  getEvaluationsByOwner,
+  getEvaluationsByAgentName,
 };
