@@ -9,7 +9,8 @@ const {
   totalescalationscounts,
   datefilterescalation,
   getEscalationsByOwner,
-  getEscalationsByAgentName
+  getEscalationsByAgentName,
+  escalationPatch
 } = require("../controllers/escalationController");
 
 const router = express.Router();
@@ -17,6 +18,7 @@ const router = express.Router();
 // Ensure uploads/audio exists or create it at app startup
 const path = require("path");
 const fs = require("fs");
+const authMiddleware = require("../middlewares/authMiddleware");
 const uploadDir = path.join(process.cwd(), "uploads", "audio");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -40,7 +42,12 @@ router.get("/owner/:ownerId", getEscalationsByOwner);
 router.get("/agent/:agentName", getEscalationsByAgentName);
 router.get("/", getEscalations);
 router.get("/:id", getEscalationById);
+
+
 router.put("/:id", upload.single("audio"), updateEscalation);
+router.patch('/escalation-patch/:id', authMiddleware, escalationPatch);      
+
+
 router.delete("/:id", deleteEscalation);
 
 

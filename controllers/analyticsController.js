@@ -239,3 +239,52 @@ exports.getEvaluationAnalytics = async (req, res) => {
       res.status(500).json({ message: 'Marketing analytics failed' });
     }
   };
+
+//  exports.agentFormSubmits = async (req, res) => {
+//   try {
+//     const data = await Evaluation.aggregate([
+//       {
+//         $group: {
+//           _id: "$agentName", // group by agent name field
+//           formSubmit: { $sum: 1 } // count number of submissions
+//         }
+//       },
+//       { $sort: { formSubmit: -1 } }
+//       { $limit: 5 }  // sort highest first
+//     ]);
+
+//     // Format for frontend (agentName + formSubmit)
+//     const formatted = data.map(item => ({
+//       agentName: item._id,
+//       formSubmit: item.formSubmit
+//     }));
+
+//     res.json({ success: true, data: formatted });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+ exports.agentFormSubmits =  async (req, res) => {
+  try {
+    const data = await Evaluation.aggregate([
+      {
+        $group: {
+          _id: "$agentName", // group by agent
+          formSubmit: { $sum: 1 } // count submissions
+        }
+      },
+      { $sort: { formSubmit: -1 } }, // sort by highest
+      { $limit: 5 } // take only top 5
+    ]);
+
+    const formatted = data.map(item => ({
+      agentName: item._id,
+      formSubmit: item.formSubmit
+    }));
+
+    res.json({ success: true, data: formatted });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
