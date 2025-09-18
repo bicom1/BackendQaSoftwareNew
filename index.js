@@ -101,7 +101,6 @@ app.use((req, res, next) => {
 });
 
 // Routes
-// User auth/profile + presence tracking
 app.use('/api/users', require('./routes/userRoutes'));
 
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));
@@ -115,6 +114,8 @@ app.use('/api/marketing', require('./routes/marketingRoutes'));
 app.use('/api/teamlead', require('./routes/teamleadRoutes'));
 
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+
+app.use('/api/agents', require('./routes/agentsRoutes'))
 
 
 // Add cron management routes (consider protecting these in production)
