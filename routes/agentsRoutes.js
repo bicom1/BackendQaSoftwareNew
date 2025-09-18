@@ -1,14 +1,17 @@
 const express = require('express');
+const { getLowRatingCalls } = require('../controllers/agentController');
 const router = express.Router();
 
 
+router.get("/low-rating", getLowRatingCalls);
 
 
+// router.post('/call-b24-api',callBitrixApi);
+// router.get('/crmleadlist', crmleadlist)
+// router.get('/leads', getAllLeads);
+// router.post('/getFilteredLeads', getFilteredLeads)
 
-router.post('/call-b24-api',callBitrixApi);
-router.get('/crmleadlist', crmleadlist)
-router.get('/leads', getAllLeads);
-router.post('/getFilteredLeads', getFilteredLeads)
+
 
 
 module.exports = router;
