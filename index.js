@@ -115,7 +115,10 @@ app.use('/api/teamlead', require('./routes/teamleadRoutes'));
 
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 
-app.use('/api/agents', require('./routes/agentsRoutes'))
+app.use('/api/agents', require('./routes/agentsRoutes'));
+
+app.use('/api/feedback', require('./routes/feedbackRoutes'));
+
 
 
 // Add cron management routes (consider protecting these in production)

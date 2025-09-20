@@ -1,5 +1,4 @@
-// controllers/userController.js
-// Handles user registration, authentication, profile, presence, and stats
+
 const AsyncHandler = require('express-async-handler');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -8,9 +7,19 @@ const { sendPasswordResetEmail } = require('../services/emailService');
 
 
 /** Generate a signed JWT for the given user id */
-const generateToken = (id, expiresIn = '1d') => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn });
+const generateToken = (user, expiresIn = '1d') => {
+  return jwt.sign(
+    {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role, // optional but useful
+    },
+    process.env.JWT_SECRET,
+    { expiresIn }
+  );
 };
+
 
 
 const registerUser = AsyncHandler(async (req, res) => {
@@ -42,14 +51,15 @@ const registerUser = AsyncHandler(async (req, res) => {
   await createUser.setOnline();
 
   res.json({
-    _id: createUser._id,
-    name: createUser.name,
-    email: createUser.email,
-    role: createUser.role,
-    isOnline: createUser.isOnline,
-    status: createUser.status,
-    token: generateToken(createUser._id),
-  });
+  _id: createUser._id,
+  name: createUser.name,
+  email: createUser.email,
+  role: createUser.role,
+  isOnline: createUser.isOnline,
+  status: createUser.status,
+  token: generateToken(createUser), // pass full user, not just id
+});
+
 });
 
 
@@ -67,27 +77,27 @@ const loginUser = AsyncHandler(async (req, res) => {
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
 
-  const token = generateToken(user._id);
-  
-  // Update user status and increment login count
+
+  const token  = generateToken(user)
   user.loginCount += 1;
   await user.setOnline();
 
   res.status(200).json({
     success: true,
     token,
-    message: 'Login successful',
-    user: {
+    message: 'Login Successfil',
+    user:{
       _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      isOnline: user.isOnline,
-      status: user.status,
-      lastActive: user.lastActive,
-      loginCount: user.loginCount
-    },
-  });
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isOnline: user.isOnline,
+    status: user.status,
+    lastActive: user.lastActive,
+    loginCount: user.loginCount,
+    }
+  })
+  
 });
 
 
