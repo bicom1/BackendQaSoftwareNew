@@ -1,9 +1,12 @@
 const express = require('express');
-const { getLowRatingCalls } = require('../controllers/agentController');
+const { getLowRatingCalls, getLowRatingChats } = require('../controllers/agentController');
 const router = express.Router();
 
 
 router.get("/low-rating", getLowRatingCalls);
+router.get("/low-rating-chats", getLowRatingChats);
+
+
 
 
 // router.post('/call-b24-api',callBitrixApi);
