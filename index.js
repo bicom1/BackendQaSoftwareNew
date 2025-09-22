@@ -17,13 +17,32 @@ const { apiReference } = require('@scalar/express-api-reference');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(
-        '/api-docs',
-        apiReference({
-            // Your configuration goes here, e.g., URL to your OpenAPI document
-            url: '/openapi.json',
-        }),
-    );
+app.get('/openapi.json', (req, res) => {
+  res.json(require('./openapi.json'))
+})
+
+app.use('/api-docs', apiReference({
+  url: '/openapi.json',
+  
+  // Customization
+  theme: 'purple',
+  layout: 'modern',
+  searchHotKey: 'f',
+  
+  // Features control
+  isEditable: false,               // Allow editing the spec
+  showSidebar: true,               // Show/hide sidebar
+  hideModels: false,               // Show/hide models section
+  
+  // Authentication (if your API requires it)
+  withDefaultAuthentication: true,
+  
+  // Custom content
+  metaData: {
+    title: 'My Awesome API',
+    description: 'Comprehensive API documentation',
+  }
+}))
 
 
 // Environment validation
@@ -91,19 +110,24 @@ app.use((req, res, next) => {
 // Routes
 // User auth/profile + presence tracking
 app.use('/api/users', require('./routes/userRoutes'));
-// Bitrix24 integration and webhook endpoints
+
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));
-// Quality evaluations CRUD + bulk queue processing
+
 app.use('/api/evaluations', require('./routes/evaluationRoutes'));
-// Escalations CRUD (supports audio uploads)
+
 app.use('/api/escalations', require('./routes/escalationRoutes'));
-// Marketing submissions CRUD + queue
+
 app.use('/api/marketing', require('./routes/marketingRoutes'));
-// Teamlead (reserved for team leader features)
+
 app.use('/api/teamlead', require('./routes/teamleadRoutes'));
-// Cross-domain analytics aggregations
+
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
-// app.use('/api/agents', require('./routes/agentsRoutes'));
+
+app.use('/api/agents', require('./routes/agentsRoutes'));
+
+app.use('/api/feedback', require('./routes/feedbackRoutes'));
+
+
 
 // Add cron management routes (consider protecting these in production)
 app.get('/api/cron/status', (req, res) => {
