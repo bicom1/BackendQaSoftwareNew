@@ -1,3 +1,10 @@
+/**
+ * Application entrypoint
+ * - Loads environment, connects MongoDB and Redis
+ * - Boots Express with security middleware and CORS
+ * - Mounts feature routes (users, evaluations, escalations, marketing, analytics, Bitrix24)
+ * - Initializes and exposes cron jobs management endpoints
+ */
 require('dotenv').config();
 const express = require('express');
 const colors = require('colors');
@@ -101,6 +108,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
+// User auth/profile + presence tracking
 app.use('/api/users', require('./routes/userRoutes'));
 
 app.use('/api/bitrix24', require('./routes/bitrix24Routes'));

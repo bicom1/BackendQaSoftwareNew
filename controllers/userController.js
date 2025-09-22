@@ -1,4 +1,3 @@
-
 const AsyncHandler = require('express-async-handler');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -19,6 +18,7 @@ const generateToken = (user, expiresIn = '1d') => {
     { expiresIn }
   );
 };
+
 
 
 
@@ -64,6 +64,9 @@ const registerUser = AsyncHandler(async (req, res) => {
 
 
 
+/**
+ * User login with email/password. Increments loginCount and sets presence online.
+ */
 const loginUser = AsyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
