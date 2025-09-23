@@ -1,16 +1,7 @@
-import express from 'express';
 import mongoose from 'mongoose';
-import redis from 'redis';
-import Queue from 'bull';
-import { redisClient } from '../config/connection.js';
 import evaluationQueue from '../queues/evaluationQueue.js';
 import AsyncHandler from 'express-async-handler';
 import Evaluation from '../models/Evaluation.js';
-
-// Evaluations controller
-// Provides CRUD, bulk ingestion via Bull queue, and Redis caching for reads
-
-
 
 
 // Create single evaluation document
@@ -382,6 +373,25 @@ const getEvaluationsByAgentName = AsyncHandler(async (req, res) => {
   }
 });
 
+const dailyEvaluationFormSubmit = async (req, res) => {
+  try {
+    const data = await Evaluation.aggregate([
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json(data.map(item => ({ date: item._id, count: item.count })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 
 
 
@@ -406,4 +416,5 @@ export {
   datefilterevaluation,
   getEvaluationsByOwner,
   getEvaluationsByAgentName,
+  dailyEvaluationFormSubmit
 };
