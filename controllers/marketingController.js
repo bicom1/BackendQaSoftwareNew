@@ -271,3 +271,29 @@ exports.deleteMarketing = async (req, res) => {
     const count = await marketingModel.countDocuments();
     res.status(200).json({success:true,count})
   })
+
+
+  exports.dailyMarketingFormSubmit = async (req, res) => {
+    try {
+      const data = await marketingModel.aggregate([
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+  
+      // Format response as { date, count }
+      res.json({
+        success: true,
+        data: data.map(item => ({
+          date: item._id,
+          count: item.count
+        }))
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  };

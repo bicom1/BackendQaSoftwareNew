@@ -1,10 +1,6 @@
 import AsyncHandler from 'express-async-handler';
 import Escalation from '../models/Escalation.js';
 
-// Escalations controller
-// Accepts webhook-style submissions, supports audio uploads, and provides CRUD + filters
-
-
 // Create a new escalation (merges query/body; handles optional audio)
 const createEscalation = AsyncHandler(async (req, res) => {
   try {
@@ -256,6 +252,31 @@ const escalationPatch = async (req, res) => {
   }
 };
 
+const dailyEscalationFormSubmit = async (req, res) => {
+  try {
+    const data = await Escalation.aggregate([
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Format response as { date, count }
+    res.json({
+      success: true,
+      data: data.map(item => ({
+        date: item._id,
+        count: item.count
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 export {
   createEscalation,
   getEscalations,
@@ -268,6 +289,6 @@ export {
   getEscalationsByOwner,
   getAgentName,
   getEscalationsByAgentName,
-  escalationPatch
-
+  escalationPatch,
+  dailyEscalationFormSubmit
 };
