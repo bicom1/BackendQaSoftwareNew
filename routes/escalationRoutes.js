@@ -10,7 +10,8 @@ const {
   datefilterescalation,
   getEscalationsByOwner,
   getEscalationsByAgentName,
-  escalationPatch
+  escalationPatch,
+  dailyEscalationFormSubmit
 } = require("../controllers/escalationController");
 
 const router = express.Router();
@@ -36,6 +37,7 @@ const upload = multer({ storage });
 
 // CRUD routes - PUT STATIC ROUTES FIRST
 router.get("/totalescalationscounts", totalescalationscounts);
+router.get('/dailyescalationformsubmit', dailyEscalationFormSubmit);
 router.get('/datefiltereescalation', datefilterescalation);
 router.post("/", upload.single("audio"), createEscalation);
 router.get("/owner/:ownerId", getEscalationsByOwner);

@@ -9,7 +9,8 @@ const { createEvaluation,
     totalevaluationcounts,
     datefilterevaluation,
     getEvaluationsByOwner, 
-    getEvaluationsByAgentName} = require('../controllers/evaluationController');
+    getEvaluationsByAgentName,
+    dailyEvaluationFormSubmit} = require('../controllers/evaluationController');
 
 const router = express.Router();
 
@@ -24,7 +25,8 @@ router.delete('/evaluations/:id', deleteEvaluation);
 router.get("/totalevaluationcounts", totalevaluationcounts);
 router.get('/datefilterevaluation',datefilterevaluation)
 router.get("/owner/:ownerId", getEvaluationsByOwner);
-router.get("/agent/:agentName", getEvaluationsByAgentName);
+router.get("/agent/:agentName",  getEvaluationsByAgentName);
+router.get('/dailyevaluationformsubmit', dailyEvaluationFormSubmit)
 
 
 
