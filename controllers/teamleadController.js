@@ -4,23 +4,14 @@ const bcrypt = require('bcryptjs');
 // CREATE
 const addLeader = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'All fields are required' });
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Name is required' });
     }
-
-    const existing = await TeamLeader.findOne({ email });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Email already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newLeader = new TeamLeader({
-      name,
-      email,
-      password: hashedPassword
+      name
     });
 
     await newLeader.save();
@@ -30,8 +21,7 @@ const addLeader = async (req, res) => {
       message: 'Team leader created',
       data: {
         id: newLeader._id,
-        name: newLeader.name,
-        email: newLeader.email
+        name: newLeader.name
       }
     });
   } catch (err) {
