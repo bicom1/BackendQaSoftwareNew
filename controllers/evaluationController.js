@@ -2,17 +2,111 @@ import mongoose from 'mongoose';
 import evaluationQueue from '../queues/evaluationQueue.js';
 import AsyncHandler from 'express-async-handler';
 import Evaluation from '../models/Evaluation.js';
+import redisClient from '../config/redis.js';
+
+const createEvaluations = AsyncHandler(async (req, res) => {
+  try {
+    const payload = {
+      ...req.query,
+      ...req.body,
+      audio: req.file ? req.file.path : null,
+    };
+
+    console.log("Webhook Payload:", payload);
+
+    // Default value if not provided
+    if (!payload.evaluatedby) {
+      payload.evaluatedby = "";
+      payload.useremail = "";
+    }
+
+    // ADD: Set as draft for Bitrix submissions
+    payload.status = 'draft';
+    payload.submissionSource = 'bitrix';
+    payload.bitrixSubmitted = true;
+
+    // Save to DB as draft
+    const doc = await Evaluation.create(payload);
+
+    res.status(201).json({
+      success: true,
+      message: "Evaluation saved as draft",
+      data: doc,
+    });
+  } catch (err) {
+    console.error("Webhook error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+const createEvaluationsFromFrontend = AsyncHandler(async (req, res) => {
+  try {
+    const payload = {
+      ...req.body,
+      audio: req.file ? req.file.path : null,
+    };
+
+    console.log("Frontend Payload:", payload);
+
+    // Set as published for frontend submissions
+    payload.status = 'published';
+    payload.submissionSource = 'frontend';
+    payload.publishedAt = new Date();
+    payload.bitrixSubmitted = false;
+
+    // Save to DB as published
+    const doc = await Evaluation.create(payload);
+
+    res.status(201).json({
+      success: true,
+      message: "Evaluation published successfully",
+      data: doc,
+    });
+  } catch (err) {
+    console.error("Frontend submission error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+const publishEvaluations = AsyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const evaluation = await Evaluation.findByIdAndUpdate(
+      id,
+      {
+        status: 'published',
+        publishedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (!evaluation) {
+      return res.status(404).json({ success: false, message: "Evaluation not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Evaluation published successfully",
+      data: evaluation,
+    });
+  } catch (err) {
+    console.error("Publish error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 
 // Create single evaluation document
-const createEvaluation = async (req, res) => {
-  try {
-    const evaluation = await Evaluation.create(req.body);
-    res.status(201).json({ message: "Evaluation saved", evaluation });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// const createEvaluation = async (req, res) => {
+//   try {
+//     const evaluation = await Evaluation.create(req.body);
+//     res.status(201).json({ message: "Evaluation saved", evaluation });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 
 
 // Enqueue multiple evaluations for background processing
@@ -180,9 +274,11 @@ const updateEvaluation = async (req, res) => {
       return res.status(404).json({ message: 'Evaluation not found' });
     }
 
-    // Update cache
+    // Update cache using new Redis syntax
     const cacheKey = `eval:${id}`;
-    redisClient.setex(cacheKey, 3600, JSON.stringify(evaluation));
+    await redisClient.set(cacheKey, JSON.stringify(evaluation), {
+      EX: 3600 // Set expiration in seconds
+    });
 
     res.status(200).json(evaluation);
   } catch (error) {
@@ -404,7 +500,9 @@ const dailyEvaluationFormSubmit = async (req, res) => {
 
 
 export {
-  createEvaluation,
+  createEvaluations,
+  createEvaluationsFromFrontend,
+  publishEvaluations,
   createBulkEvaluations,
   getEvaluations,
   getEvaluationById,

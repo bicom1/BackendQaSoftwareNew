@@ -5,15 +5,15 @@ const evaluationSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
     useremail: {
       type: String,
-      required: [true, "field is require"],
+      required: [false, "field is require"],
     },
     leadID: {
       type: Number,
-      required: [true, "Lead ID is required"],
+      required: [false, "Lead ID is required"],
       validate: {
         validator: Number.isInteger,
         message: "{VALUE} is not an integer value"
@@ -25,15 +25,15 @@ required: [false, "Evaluated by is required"],
 },
     agentName: {
       type: String,
-      required: [true, "field is require"],
+      required: [false, "field is require"],
     },
     mod: {
       type: String,
-      required: [true, "field is require"],
+      required: [false, "field is require"],
     },
     teamleader: {
       type: String,
-      required: [true, "field is require"],
+      required: [false, "field is require"],
     },
     greetings: {
       type: String,
@@ -56,10 +56,27 @@ required: [false, "Evaluated by is required"],
     evaluationsummary: {
       type: String,
     },
-    rating: {             // added rating field
+    rating: {             
       type: Number,
       default: 0,
     },
+    status: {
+      type: String,
+      enum: ['draft', 'published', 'archived'],
+      default: 'draft'
+    },
+    submissionSource: {
+      type: String,
+      enum: ['frontend', 'bitrix'],
+      default: 'frontend' 
+    },
+    publishedAt: {
+      type: Date
+    },
+    bitrixSubmitted: {
+      type: Boolean,
+      default: true
+    }
   },
   { timestamps: true }
 );
