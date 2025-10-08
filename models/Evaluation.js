@@ -19,10 +19,6 @@ const evaluationSchema = new mongoose.Schema(
         message: "{VALUE} is not an integer value"
     }
    },
-evaluatedby: {
-type: String,
-required: [false, "Evaluated by is required"],
-},
     agentName: {
       type: String,
       required: [false, "field is require"],

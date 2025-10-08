@@ -14,9 +14,11 @@ const createEscalation = AsyncHandler(async (req, res) => {
 
     // Default value if not provided
     if (!payload.evaluatedby) {
-      payload.evaluatedby = "";
-      payload.useremail = "";
-    }
+  payload.evaluatedby = "";
+}
+if (!payload.useremail) {
+  payload.useremail = "";
+}
 
     // ADD: Set as draft for Bitrix submissions
     payload.status = 'draft';
@@ -294,6 +296,23 @@ const getEscalationsByAgentName = AsyncHandler(async (req, res) => {
 
 });
 
+const getEscalationsByUserEmail = AsyncHandler(async (req, res) => {
+  try {
+    const { useremail } = req.params;
+
+    // case-insensitive search
+    const escalations = await Escalation.find({
+      useremail: { $regex: new RegExp(`^${useremail}$`, "i") }
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: escalations });
+  } catch (error) {
+    console.error("Error fetching escalations by useremail:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+
+});
+
 const escalationPatch = async (req, res) => {
   try {
     const { id } = req.params;
@@ -340,6 +359,63 @@ const dailyEscalationFormSubmit = async (req, res) => {
   }
 };
 
+const getEscalationsPublishedByUserEmail = async (req, res) => {
+  try {
+    const { useremail } = req.params;
+    
+    const escalations = await Escalation.find({ 
+      $or: [
+        { userEmail: useremail },
+        { email: useremail }
+      ],
+      $or: [
+        { status: 'published' },
+        { submissionSource: 'frontend' }
+      ]
+    }).sort({ publishedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: escalations,
+      count: escalations.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getEscalationsDraftsByUserEmail = async (req, res) => {
+  try {
+    const { useremail } = req.params;
+    
+    const escalations = await Escalation.find({ 
+      $or: [
+        { userEmail: useremail },
+        { email: useremail }
+      ],
+      $or: [
+        { status: 'draft' },
+        { submissionSource: 'bitrix' }
+      ]
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: escalations,
+      count: escalations.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
 export {
   createEscalation,
   getEscalations,
@@ -355,5 +431,8 @@ export {
   escalationPatch,
   dailyEscalationFormSubmit,
   createEscalationFromFrontend,
-  publishEscalation
+  publishEscalation,
+  getEscalationsByUserEmail,
+  getEscalationsPublishedByUserEmail,
+  getEscalationsDraftsByUserEmail
 };

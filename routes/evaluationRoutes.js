@@ -13,7 +13,10 @@ const { createEvaluation,
     dailyEvaluationFormSubmit,
     createEvaluations,
     createEvaluationsFromFrontend,
-    publishEvaluations} = require('../controllers/evaluationController');
+    publishEvaluations,
+    getEvaluationsByUseremail,
+    getEvaluationsPublishedByUseremail,
+    getEvaluationsDraftsByUseremail} = require('../controllers/evaluationController');
 const Evaluation = require('../models/Evaluation');
 
 const router = express.Router();
@@ -30,6 +33,10 @@ router.get("/totalevaluationcounts", totalevaluationcounts);
 router.get('/datefilterevaluation',datefilterevaluation)
 router.get("/owner/:ownerId", getEvaluationsByOwner);
 router.get("/agent/:agentName",  getEvaluationsByAgentName);
+router.get("/useremail/:useremail",  getEvaluationsByUseremail);
+router.get("/useremail/:useremail/published", getEvaluationsPublishedByUseremail);
+router.get("/useremail/:useremail/drafts", getEvaluationsDraftsByUseremail);
+
 router.get('/dailyevaluationformsubmit', dailyEvaluationFormSubmit)
 
 // Bitrix webhook - creates draft
@@ -59,6 +66,8 @@ router.get('/evaluations/drafts', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+
 
 
 

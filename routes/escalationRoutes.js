@@ -13,7 +13,10 @@ const {
   escalationPatch,
   dailyEscalationFormSubmit,
   createEscalationFromFrontend,
-  publishEscalation
+  publishEscalation,
+  getEscalationsByUserEmail,
+  getEscalationsPublishedByUserEmail,
+  getEscalationsDraftsByUserEmail
 } = require("../controllers/escalationController");
 
 const router = express.Router();
@@ -42,9 +45,12 @@ const upload = multer({ storage });
 router.get("/totalescalationscounts", totalescalationscounts);
 router.get('/dailyescalationformsubmit', dailyEscalationFormSubmit);
 router.get('/datefiltereescalation', datefilterescalation);
-// router.post("/", upload.single("audio"), createEscalation);
 router.get("/owner/:ownerId", getEscalationsByOwner);
 router.get("/agent/:agentName", getEscalationsByAgentName);
+router.get("/useremail/:useremail", getEscalationsByUserEmail);
+router.get("/useremail/:useremail/published", getEscalationsPublishedByUserEmail);
+router.get("/useremail/:useremail/drafts", getEscalationsDraftsByUserEmail);
+
 router.get("/", getEscalations);
 router.get("/:id", getEscalationById);
 
