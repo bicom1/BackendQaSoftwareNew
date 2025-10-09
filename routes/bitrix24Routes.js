@@ -28,7 +28,7 @@ router.post('/lead-button', bitrixLeadButton)
 // router.post("/webhook", handleWebhook);
 // router.get("/:id", getEscalationByIdBitrix); 
 router.get("/:identifier", getEscalationByIdBitrix);
-router.post('/webhook', createEscalation);
+// router.post('/webhook', createEscalation);
 router.get('/:agentEmail', getAgentName)
 // In your bitrix24Routes.js file
 

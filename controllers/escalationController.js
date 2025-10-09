@@ -14,20 +14,85 @@ const createEscalation = AsyncHandler(async (req, res) => {
 
     // Default value if not provided
     if (!payload.evaluatedby) {
-      payload.evaluatedby = "";
-      payload.useremail= "";
-    }
+  payload.evaluatedby = "";
+}
+if (!payload.useremail) {
+  payload.useremail = "";
+}
 
-    // Save to DB
+    // ADD: Set as draft for Bitrix submissions
+    payload.status = 'draft';
+    payload.submissionSource = 'bitrix';
+    payload.bitrixSubmitted = true;
+
+    // Save to DB as draft
     const doc = await Escalation.create(payload);
 
     res.status(201).json({
       success: true,
-      message: "Escalation saved",
+      message: "Escalation saved as draft",
       data: doc,
     });
   } catch (err) {
     console.error("Webhook error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+const createEscalationFromFrontend = AsyncHandler(async (req, res) => {
+  try {
+    const payload = {
+      ...req.body,
+      audio: req.file ? req.file.path : null,
+    };
+
+    console.log("Frontend Payload:", payload);
+
+    // Set as published for frontend submissions
+    payload.status = 'published';
+    payload.submissionSource = 'frontend';
+    payload.publishedAt = new Date();
+    payload.bitrixSubmitted = false;
+
+    // Save to DB as published
+    const doc = await Escalation.create(payload);
+
+    res.status(201).json({
+      success: true,
+      message: "Escalation published successfully",
+      data: doc,
+    });
+  } catch (err) {
+    console.error("Frontend submission error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+const publishEscalation = AsyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const escalation = await Escalation.findByIdAndUpdate(
+      id,
+      {
+        status: 'published',
+        publishedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (!escalation) {
+      return res.status(404).json({ success: false, message: "Escalation not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Escalation published successfully",
+      data: escalation,
+    });
+  } catch (err) {
+    console.error("Publish error:", err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -232,6 +297,23 @@ const getEscalationsByAgentName = AsyncHandler(async (req, res) => {
 
 });
 
+const getEscalationsByUserEmail = AsyncHandler(async (req, res) => {
+  try {
+    const { useremail } = req.params;
+
+    // case-insensitive search
+    const escalations = await Escalation.find({
+      useremail: { $regex: new RegExp(`^${useremail}$`, "i") }
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: escalations });
+  } catch (error) {
+    console.error("Error fetching escalations by useremail:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+
+});
+
 const escalationPatch = async (req, res) => {
   try {
     const { id } = req.params;
@@ -278,6 +360,63 @@ const dailyEscalationFormSubmit = async (req, res) => {
   }
 };
 
+const getEscalationsPublishedByUserEmail = async (req, res) => {
+  try {
+    const { useremail } = req.params;
+    
+    const escalations = await Escalation.find({ 
+      $or: [
+        { userEmail: useremail },
+        { email: useremail }
+      ],
+      $or: [
+        { status: 'published' },
+        { submissionSource: 'frontend' }
+      ]
+    }).sort({ publishedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: escalations,
+      count: escalations.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getEscalationsDraftsByUserEmail = async (req, res) => {
+  try {
+    const { useremail } = req.params;
+    
+    const escalations = await Escalation.find({ 
+      $or: [
+        { userEmail: useremail },
+        { email: useremail }
+      ],
+      $or: [
+        { status: 'draft' },
+        { submissionSource: 'bitrix' }
+      ]
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: escalations,
+      count: escalations.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
 export {
   createEscalation,
   getEscalations,
@@ -291,5 +430,10 @@ export {
   getAgentName,
   getEscalationsByAgentName,
   escalationPatch,
-  dailyEscalationFormSubmit
+  dailyEscalationFormSubmit,
+  createEscalationFromFrontend,
+  publishEscalation,
+  getEscalationsByUserEmail,
+  getEscalationsPublishedByUserEmail,
+  getEscalationsDraftsByUserEmail
 };
