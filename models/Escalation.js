@@ -1,81 +1,115 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const escalationSchema = new mongoose.Schema(
   {
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: false,
+      required: true,
     },
     useremail: {
       type: String,
-      required: [false, "Email is required"],
+      required: true,
+      lowercase: true,
+      trim: true,
     },
     leadID: {
-      type: Number,
-      required: [false, "Lead ID is required"],
-      validate: {
-        validator: Number.isInteger,
-        message: "{VALUE} is not an integer value"
-      }
-    },
-    evaluatedby: {
       type: String,
-      required: [false, "Evaluated by is required"],
+      required: true,
     },
     agentName: {
       type: String,
-      required: [false, "Agent name is required"],
+      required: true,
+      trim: true,
     },
     teamleader: {
       type: String,
+      required: true,
+      trim: true,
     },
-    leadsource: {
+    evaluatedby: {
       type: String,
+      required: true,
+      trim: true,
     },
-    leadStatus: {
+    leadSource: {
       type: String,
-    },
-    escSeverity: {
-      type: String,
-    },
-    issueIden: {
-      type: String,
-    },
-    escAction: {
-      type: String,
-    },
-    documentation: {
-      type: String,
-    },
-    successmaration: {
-      type: String,
+      required: true,
+      enum: [
+        "Facebook",
+        "Instagram",
+        "Live chat",
+        "Call",
+        "WhatsApp",
+        "PPC",
+        "SnapChat",
+        "TikTok",
+        "SEO",
+      ],
     },
     userrating: {
       type: String,
+      required: true,
+      enum: ["good", "average", "bad"],
+    },
+    leadStatus: {
+      type: String,
+      required: true,
+    },
+    escSeverity: {
+      type: String,
+      required: true,
+      enum: ["Urgent Action required", "High", "Repeated"],
+    },
+    issueIden: {
+      type: String,
+      required: true,
+      enum: [
+        "Product Knowledge",
+        "Sales Process",
+        "Communication",
+        "Customer Focus",
+        "Other",
+      ],
+    },
+
+    escAction: {
+      type: String,
+      required: true,
+      enum: [
+        "Coaching Required",
+        "Additional Training",
+        "Policy Violation",
+        "Other",
+      ],
+    },
+    otherAction: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+   
+    isOther: {
+      type: Boolean,
+      default: false,
+    },
+
+    documentation: {
+      type: String,
+      default: "",
+    },
+    successmaration: {
+      type: String,
+      required: true,
+      trim: true,
     },
     audio: {
       type: String,
+      default: null,
     },
-    status: {
-      type: String,
-      enum: ['draft', 'published', 'archived'],
-      default: 'draft'
-    },
-    submissionSource: {
-      type: String,
-      enum: ['frontend', 'bitrix'],
-      default: 'frontend' 
-    },
-    publishedAt: {
-      type: Date
-    },
-    bitrixSubmitted: {
-      type: Boolean,
-      default: true
-    }
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Escalation", escalationSchema);
+export default mongoose.model("Escalation", escalationSchema);

@@ -1,8 +1,7 @@
-// Aggregated analytics across Users, Evaluations, Escalations, and Marketing
-const User = require('../models/usermodel');
-const Evaluation = require('../models/Evaluation');
-const Escalation = require('../models/Escalation');
-const Marketing = require('../models/Marketing');
+import User from "../models/usermodel.js";
+import Evaluation from "../models/Evaluation.js";
+import Escalation from "../models/Escalation.js";
+import Marketing from "../models/Marketing.js";
 
 // Helper to convert range param to MongoDB date filter
 const getDateFilter = (range) => {
@@ -10,16 +9,16 @@ const getDateFilter = (range) => {
   let from;
 
   switch (range) {
-    case '7d':
+    case "7d":
       from = new Date(now.setDate(now.getDate() - 7));
       break;
-    case '30d':
+    case "30d":
       from = new Date(now.setDate(now.getDate() - 30));
       break;
-    case 'month':
+    case "month":
       from = new Date(now.getFullYear(), now.getMonth(), 1);
       break;
-    case 'quarter':
+    case "quarter":
       const currentMonth = now.getMonth();
       const quarterStartMonth = currentMonth - (currentMonth % 3);
       from = new Date(now.getFullYear(), quarterStartMonth, 1);
@@ -31,13 +30,12 @@ const getDateFilter = (range) => {
   return { createdAt: { $gte: from } };
 };
 
-/**
- * GET /api/analytics/overview?range=7d|30d|month|quarter
- * Returns top-level KPIs and small samples for dashboard cards.
- */
-exports.getOverviewAnalytics = async (req, res) => {
+/** ===============================
+ *  📊 Overview Analytics
+ *  =============================== */
+export const getOverviewAnalytics = async (req, res) => {
   try {
-    const range = req.query.range || ''; // optional
+    const range = req.query.range || "";
     const filter = getDateFilter(range);
 
     const totalUsers = await User.countDocuments();
@@ -47,15 +45,17 @@ exports.getOverviewAnalytics = async (req, res) => {
 
     const evalAvgResult = await Evaluation.aggregate([
       { $match: filter },
-      { $group: { _id: null, avgRating: { $avg: "$rating" } } }
+      { $group: { _id: null, avgRating: { $avg: "$rating" } } },
     ]);
     const evalAvg = evalAvgResult[0]?.avgRating || 0;
 
     const modCountAgg = await Evaluation.aggregate([
       { $match: filter },
-      { $group: { _id: "$mod", count: { $sum: 1 } } }
+      { $group: { _id: "$mod", count: { $sum: 1 } } },
     ]);
-    const modCounts = Object.fromEntries(modCountAgg.map(i => [i._id, i.count]));
+    const modCounts = Object.fromEntries(
+      modCountAgg.map((i) => [i._id, i.count])
+    );
 
     const ratingRangeAgg = await Evaluation.aggregate([
       { $match: filter },
@@ -64,59 +64,95 @@ exports.getOverviewAnalytics = async (req, res) => {
           groupBy: "$rating",
           boundaries: [0, 50, 80, 101],
           default: "Other",
-          output: { count: { $sum: 1 } }
-        }
-      }
+          output: { count: { $sum: 1 } },
+        },
+      },
     ]);
-    const ratingRanges = { '0-49': 0, '50-79': 0, '80-100': 0 };
-    ratingRangeAgg.forEach(r => {
-      if (r._id === 0) ratingRanges['0-49'] = r.count;
-      else if (r._id === 50) ratingRanges['50-79'] = r.count;
-      else if (r._id === 80) ratingRanges['80-100'] = r.count;
+    const ratingRanges = { "0-49": 0, "50-79": 0, "80-100": 0 };
+    ratingRangeAgg.forEach((r) => {
+      if (r._id === 0) ratingRanges["0-49"] = r.count;
+      else if (r._id === 50) ratingRanges["50-79"] = r.count;
+      else if (r._id === 80) ratingRanges["80-100"] = r.count;
     });
 
-    const latestEvaluations = await Evaluation.find(filter).sort({ createdAt: -1 }).limit(5);
+    const latestEvaluations = await Evaluation.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
 
     // Escalations
     const escTotal = await Escalation.countDocuments(filter);
 
     const severityAgg = await Escalation.aggregate([
       { $match: filter },
-      { $group: { _id: "$escSeverity", count: { $sum: 1 } } }
+      {
+        $group: {
+          _id: { $ifNull: ["$escSeverity", "Unknown"] },
+          count: { $sum: 1 },
+        },
+      },
     ]);
-    const severityCounts = Object.fromEntries(severityAgg.map(i => [i._id, i.count]));
+    const severityCounts = Object.fromEntries(
+      severityAgg.map((i) => [i._id, i.count])
+    );
 
     const issueAgg = await Escalation.aggregate([
       { $match: filter },
       {
         $group: {
-          _id: { $ifNull: ["$issueIden", "$issueidentification"] },
-          count: { $sum: 1 }
-        }
-      }
+          _id: {
+            $ifNull: [
+              { $ifNull: ["$issueIden", "$issueidentification"] },
+              "Unknown",
+            ],
+          },
+          count: { $sum: 1 },
+        },
+      },
     ]);
-    const issueCounts = Object.fromEntries(issueAgg.map(i => [i._id, i.count]));
+    const issueCounts = Object.fromEntries(
+      issueAgg.map((i) => [i._id, i.count])
+    );
 
-    const latestEscalations = await Escalation.find(filter).sort({ createdAt: -1 }).limit(5);
+    const latestEscalations = await Escalation.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
 
     // Marketing
     const marketingTotal = await Marketing.countDocuments(filter);
 
     const qualityAgg = await Marketing.aggregate([
       { $match: filter },
-      { $group: { _id: "$leadQuality", count: { $sum: 1 } } }
+      {
+        $group: {
+          _id: { $ifNull: ["$leadQuality", "Unknown"] },
+          count: { $sum: 1 },
+        },
+      },
     ]);
-    const qualityCounts = Object.fromEntries(qualityAgg.map(i => [i._id, i.count]));
+    const qualityCounts = Object.fromEntries(
+      qualityAgg.map((i) => [i._id, i.count])
+    );
 
     const sourceAgg = await Marketing.aggregate([
       { $match: filter },
-      { $group: { _id: "$source", count: { $sum: 1 } } }
+      {
+        $group: {
+          _id: { $ifNull: ["$source", "Unknown"] },
+          count: { $sum: 1 },
+        },
+      },
     ]);
-    const sourceCounts = Object.fromEntries(sourceAgg.map(i => [i._id, i.count]));
+    const sourceCounts = Object.fromEntries(
+      sourceAgg.map((i) => [i._id, i.count])
+    );
 
-    const latestMarketing = await Marketing.find(filter).sort({ createdAt: -1 }).limit(5);
+    const latestMarketing = await Marketing.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
 
-    // Final Response
     res.json({
       totalUsers,
       evaluations: {
@@ -124,167 +160,192 @@ exports.getOverviewAnalytics = async (req, res) => {
         avgRating: evalAvg,
         modCounts,
         ratingRanges,
-        latestEvaluations
+        latestEvaluations,
       },
       escalations: {
         total: escTotal,
         severityCounts,
         issueCounts,
-        latestEscalations
+        latestEscalations,
       },
       marketing: {
         total: marketingTotal,
         qualityCounts,
         sourceCounts,
-        latestMarketing
-      }
+        latestMarketing,
+      },
     });
   } catch (error) {
-    console.error('Analytics error:', error);
-    res.status(500).json({ message: 'Failed to load analytics' });
+    console.error("Analytics error:", error.message);
+    res
+      .status(500)
+      .json({ message: "Failed to load analytics", error: error.message });
   }
 };
 
-/** Detailed evaluation analytics (counts, average, distributions) */
-exports.getEvaluationAnalytics = async (req, res) => {
-    try {
-      const total = await Evaluation.countDocuments();
-      const avgResult = await Evaluation.aggregate([
-        { $group: { _id: null, avgRating: { $avg: "$rating" } } }
-      ]);
-      const avgRating = avgResult[0]?.avgRating || 0;
-  
-      const modAgg = await Evaluation.aggregate([
-        { $group: { _id: "$mod", count: { $sum: 1 } } }
-      ]);
-      const modCounts = Object.fromEntries(modAgg.map(i => [i._id, i.count]));
-  
-      const ratingAgg = await Evaluation.aggregate([
-        {
-          $bucket: {
-            groupBy: "$rating",
-            boundaries: [0, 50, 80, 101],
-            default: "Other",
-            output: { count: { $sum: 1 } }
-          }
-        }
-      ]);
-      const ratingRanges = { '0-49': 0, '50-79': 0, '80-100': 0 };
-      ratingAgg.forEach(r => {
-        if (r._id === 0) ratingRanges['0-49'] = r.count;
-        else if (r._id === 50) ratingRanges['50-79'] = r.count;
-        else if (r._id === 80) ratingRanges['80-100'] = r.count;
-      });
-  
-      const latestEvaluations = await Evaluation.find().sort({ createdAt: -1 }).limit(5);
-  
-      res.json({ total, avgRating, modCounts, ratingRanges, latestEvaluations });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Evaluation analytics failed' });
-    }
-  };
-  
-  // /api/analytics/escalations
-  /** Severity, issue distribution, and latest escalations */
-  exports.getEscalationAnalytics = async (req, res) => {
-    try {
-      const total = await Escalation.countDocuments();
-  
-      const severityAgg = await Escalation.aggregate([
-        { $group: { _id: "$escSeverity", count: { $sum: 1 } } }
-      ]);
-      const severityCounts = Object.fromEntries(severityAgg.map(i => [i._id, i.count]));
-  
-      const issueAgg = await Escalation.aggregate([
-        {
-          $group: {
-            _id: { $ifNull: ["$issueIden", "$issueidentification"] },
-            count: { $sum: 1 }
-          }
-        }
-      ]);
-      const issueCounts = Object.fromEntries(issueAgg.map(i => [i._id, i.count]));
-  
-      const latestEscalations = await Escalation.find().sort({ createdAt: -1 }).limit(5);
-  
-      res.json({ total, severityCounts, issueCounts, latestEscalations });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Escalation analytics failed' });
-    }
-  };
-  
-  // /api/analytics/marketing
-  /** Lead quality and source distributions and latest items */
-  exports.getMarketingAnalytics = async (req, res) => {
-    try {
-      const total = await Marketing.countDocuments();
-  
-      const qualityAgg = await Marketing.aggregate([
-        { $group: { _id: "$leadQuality", count: { $sum: 1 } } }
-      ]);
-      const qualityCounts = Object.fromEntries(qualityAgg.map(i => [i._id, i.count]));
-  
-      const sourceAgg = await Marketing.aggregate([
-        { $group: { _id: "$source", count: { $sum: 1 } } }
-      ]);
-      const sourceCounts = Object.fromEntries(sourceAgg.map(i => [i._id, i.count]));
-  
-      const latestMarketing = await Marketing.find().sort({ createdAt: -1 }).limit(5);
-  
-      res.json({ total, qualityCounts, sourceCounts, latestMarketing });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Marketing analytics failed' });
-    }
-  };
-
-//  exports.agentFormSubmits = async (req, res) => {
-//   try {
-//     const data = await Evaluation.aggregate([
-//       {
-//         $group: {
-//           _id: "$agentName", // group by agent name field
-//           formSubmit: { $sum: 1 } // count number of submissions
-//         }
-//       },
-//       { $sort: { formSubmit: -1 } }
-//       { $limit: 5 }  // sort highest first
-//     ]);
-
-//     // Format for frontend (agentName + formSubmit)
-//     const formatted = data.map(item => ({
-//       agentName: item._id,
-//       formSubmit: item.formSubmit
-//     }));
-
-//     res.json({ success: true, data: formatted });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
-
- exports.agentFormSubmits =  async (req, res) => {
+/** ===============================
+ *  🧾 Evaluation Analytics
+ *  =============================== */
+export const getEvaluationAnalytics = async (req, res) => {
   try {
-    const data = await Evaluation.aggregate([
+    const total = await Evaluation.countDocuments();
+
+    const avgResult = await Evaluation.aggregate([
+      { $group: { _id: null, avgRating: { $avg: "$rating" } } },
+    ]);
+    const avgRating = avgResult[0]?.avgRating || 0;
+
+    const modAgg = await Evaluation.aggregate([
+      { $group: { _id: "$mod", count: { $sum: 1 } } },
+    ]);
+    const modCounts = Object.fromEntries(modAgg.map((i) => [i._id, i.count]));
+
+    const ratingAgg = await Evaluation.aggregate([
+      {
+        $bucket: {
+          groupBy: "$rating",
+          boundaries: [0, 50, 80, 101],
+          default: "Other",
+          output: { count: { $sum: 1 } },
+        },
+      },
+    ]);
+    const ratingRanges = { "0-49": 0, "50-79": 0, "80-100": 0 };
+    ratingAgg.forEach((r) => {
+      if (r._id === 0) ratingRanges["0-49"] = r.count;
+      else if (r._id === 50) ratingRanges["50-79"] = r.count;
+      else if (r._id === 80) ratingRanges["80-100"] = r.count;
+    });
+
+    const latestEvaluations = await Evaluation.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    res.json({ total, avgRating, modCounts, ratingRanges, latestEvaluations });
+  } catch (error) {
+    console.error("Evaluation analytics error:", error.message);
+    res.status(500).json({ message: "Evaluation analytics failed" });
+  }
+};
+
+/** ===============================
+ *  🚨 Escalation Analytics
+ *  =============================== */
+export const getEscalationAnalytics = async (req, res) => {
+  try {
+    console.log("Fetching Escalation analytics...");
+
+    const total = await Escalation.countDocuments();
+    console.log("Total Escalations:", total);
+
+    const severityAgg = await Escalation.aggregate([
       {
         $group: {
-          _id: "$agentName", // group by agent
-          formSubmit: { $sum: 1 } // count submissions
-        }
+          _id: { $ifNull: ["$escSeverity", "Unknown"] },
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { formSubmit: -1 } }, // sort by highest
-      { $limit: 5 } // take only top 5
+    ]);
+    const severityCounts = Object.fromEntries(
+      severityAgg.map((i) => [i._id, i.count])
+    );
+
+    const issueAgg = await Escalation.aggregate([
+      {
+        $group: {
+          _id: {
+            $ifNull: [
+              { $ifNull: ["$issueIden", "$issueidentification"] },
+              "Unknown",
+            ],
+          },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    const issueCounts = Object.fromEntries(
+      issueAgg.map((i) => [i._id, i.count])
+    );
+
+    const latestEscalations = await Escalation.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    console.log("Latest Escalations fetched:", latestEscalations.length);
+
+    res.json({ total, severityCounts, issueCounts, latestEscalations });
+  } catch (error) {
+    console.error("Escalation analytics error:", error);
+    res
+      .status(500)
+      .json({ message: "Escalation analytics failed", error: error.message });
+  }
+};
+
+/** ===============================
+ *  📈 Marketing Analytics
+ *  =============================== */
+export const getMarketingAnalytics = async (req, res) => {
+  try {
+    const total = await Marketing.countDocuments();
+
+    const qualityAgg = await Marketing.aggregate([
+      {
+        $group: {
+          _id: { $ifNull: ["$leadQuality", "Unknown"] },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    const qualityCounts = Object.fromEntries(
+      qualityAgg.map((i) => [i._id, i.count])
+    );
+
+    const sourceAgg = await Marketing.aggregate([
+      {
+        $group: {
+          _id: { $ifNull: ["$source", "Unknown"] },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    const sourceCounts = Object.fromEntries(
+      sourceAgg.map((i) => [i._id, i.count])
+    );
+
+    const latestMarketing = await Marketing.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    res.json({ total, qualityCounts, sourceCounts, latestMarketing });
+  } catch (error) {
+    console.error("Marketing analytics error:", error.message);
+    res.status(500).json({ message: "Marketing analytics failed" });
+  }
+};
+
+/** ===============================
+ *  🧑‍💼 Agent Form Submits (Top 5)
+ *  =============================== */
+export const agentFormSubmits = async (req, res) => {
+  try {
+    const data = await Evaluation.aggregate([
+      { $group: { _id: "$agentName", formSubmit: { $sum: 1 } } },
+      { $sort: { formSubmit: -1 } },
+      { $limit: 5 },
     ]);
 
-    const formatted = data.map(item => ({
-      agentName: item._id,
-      formSubmit: item.formSubmit
+    const formatted = data.map((item) => ({
+      agentName: item._id || "Unknown",
+      formSubmit: item.formSubmit,
     }));
 
     res.json({ success: true, data: formatted });
   } catch (err) {
+    console.error("Agent form submit analytics error:", err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };

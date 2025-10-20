@@ -1,8 +1,8 @@
-import mongoose from 'mongoose';
-import evaluationQueue from '../queues/evaluationQueue.js';
-import AsyncHandler from 'express-async-handler';
-import Evaluation from '../models/Evaluation.js';
-import redisClient from '../config/redis.js';
+import mongoose from "mongoose";
+import evaluationQueue from "../queues/evaluationQueue.js";
+import AsyncHandler from "express-async-handler";
+import Evaluation from "../models/Evaluation.js";
+import redisClient from "../config/redis.js";
 
 const createEvaluations = AsyncHandler(async (req, res) => {
   try {
@@ -16,15 +16,15 @@ const createEvaluations = AsyncHandler(async (req, res) => {
 
     // Default value if not provided
     if (!payload.evaluatedby) {
-  payload.evaluatedby = "";
-}
-if (!payload.useremail) {
-  payload.useremail = "";
-}
+      payload.evaluatedby = "";
+    }
+    if (!payload.useremail) {
+      payload.useremail = "";
+    }
 
     // ADD: Set as draft for Bitrix submissions
-    payload.status = 'draft';
-    payload.submissionSource = 'bitrix';
+    payload.status = "draft";
+    payload.submissionSource = "bitrix";
     payload.bitrixSubmitted = true;
 
     // Save to DB as draft
@@ -41,7 +41,6 @@ if (!payload.useremail) {
   }
 });
 
-
 const createEvaluationsFromFrontend = AsyncHandler(async (req, res) => {
   try {
     const payload = {
@@ -49,11 +48,11 @@ const createEvaluationsFromFrontend = AsyncHandler(async (req, res) => {
       audio: req.file ? req.file.path : null,
     };
 
-    console.log("Frontend Payload:", payload);
+    console.log("Frontend Payload:", payload); // ✅ fixed variable name
 
     // Set as published for frontend submissions
-    payload.status = 'published';
-    payload.submissionSource = 'frontend';
+    payload.status = "published";
+    payload.submissionSource = "frontend";
     payload.publishedAt = new Date();
     payload.bitrixSubmitted = false;
 
@@ -77,18 +76,18 @@ const publishEvaluations = AsyncHandler(async (req, res) => {
 
     // Check if evaluation exists and isn't already published
     const existingEvaluation = await Evaluation.findById(id);
-    
+
     if (!existingEvaluation) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Evaluation not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Evaluation not found",
       });
     }
 
-    if (existingEvaluation.status === 'published') {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Evaluation is already published" 
+    if (existingEvaluation.status === "published") {
+      return res.status(400).json({
+        success: false,
+        message: "Evaluation is already published",
       });
     }
 
@@ -96,37 +95,32 @@ const publishEvaluations = AsyncHandler(async (req, res) => {
     const evaluation = await Evaluation.findByIdAndUpdate(
       id,
       {
-        status: 'published',
-        publishedAt: new Date()
+        status: "published",
+        publishedAt: new Date(),
       },
-      { new: true, runValidators: true } 
-    ).populate('user', 'email name'); // Populate user data if you have user reference
+      { new: true, runValidators: true }
+    ).populate("user", "email name"); // Populate user data if you have user reference
 
     // If you store email directly in evaluation document
     const userEmail = evaluation.useremail; // or evaluation.user?.email
 
-    console.log('Published evaluation for user:', userEmail);
+    console.log("Published evaluation for user:", userEmail);
 
     res.status(200).json({
       success: true,
       message: "Evaluation published successfully",
       data: evaluation,
-      userEmail: userEmail // Include email in response if needed
+      userEmail: userEmail, // Include email in response if needed
     });
   } catch (err) {
     console.error("Publish error:", err.message);
-    
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to publish evaluation" 
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to publish evaluation",
     });
   }
 });
-
-
-
-
-
 
 // const publishEvaluations = AsyncHandler(async (req, res) => {
 //   try {
@@ -156,53 +150,58 @@ const publishEvaluations = AsyncHandler(async (req, res) => {
 //   }
 // });
 
-
 const createBulkEvaluations = async (req, res) => {
   try {
     const evaluations = req.body;
-    
+
     if (!Array.isArray(evaluations)) {
-      return res.status(400).json({ message: 'Input should be an array of evaluations' });
+      return res
+        .status(400)
+        .json({ message: "Input should be an array of evaluations" });
     }
 
     // Validate each evaluation
-    const invalidEvaluations = evaluations.filter(item => 
-      !item.owner || !item.useremail || !item.leadID || 
-      !item.agentName || !item.mod || !item.teamleader
+    const invalidEvaluations = evaluations.filter(
+      (item) =>
+        !item.owner ||
+        !item.useremail ||
+        !item.leadID ||
+        !item.agentName ||
+        !item.mod ||
+        !item.teamleader
     );
 
     if (invalidEvaluations.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: `${invalidEvaluations.length} evaluations missing required fields`,
-        examples: invalidEvaluations.slice(0, 3)
+        examples: invalidEvaluations.slice(0, 3),
       });
     }
 
     // Add all evaluations to the queue
-    const jobs = evaluations.map(item => ({
+    const jobs = evaluations.map((item) => ({
       data: item,
       opts: {
         attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
-        timeout: 30000
-      }
+        backoff: { type: "exponential", delay: 1000 },
+        timeout: 30000,
+      },
     }));
 
     await evaluationQueue.addBulk(jobs);
-    
-    res.status(202).json({ 
+
+    res.status(202).json({
       message: `${evaluations.length} evaluations queued for processing`,
       queueStatus: {
         waiting: await evaluationQueue.getWaitingCount(),
-        active: await evaluationQueue.getActiveCount()
-      }
+        active: await evaluationQueue.getActiveCount(),
+      },
     });
   } catch (error) {
-    console.error('Error queuing bulk evaluations:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Error queuing bulk evaluations:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
 
 // List evaluations with filtering + pagination (caches first-page filtered results)
 const getEvaluations = async (req, res) => {
@@ -218,7 +217,8 @@ const getEvaluations = async (req, res) => {
     if (req.query.mod) query.mod = req.query.mod;
     if (req.query.startDate || req.query.endDate) {
       query.createdAt = {};
-      if (req.query.startDate) query.createdAt.$gte = new Date(req.query.startDate);
+      if (req.query.startDate)
+        query.createdAt.$gte = new Date(req.query.startDate);
       if (req.query.endDate) query.createdAt.$lte = new Date(req.query.endDate);
     }
 
@@ -228,7 +228,7 @@ const getEvaluations = async (req, res) => {
         .skip(skip)
         .limit(limit)
         .lean(),
-      Evaluation.countDocuments(query)
+      Evaluation.countDocuments(query),
     ]);
 
     // Cache the first page for common queries
@@ -243,12 +243,12 @@ const getEvaluations = async (req, res) => {
         total,
         page,
         pages: Math.ceil(total / limit),
-        limit
-      }
+        limit,
+      },
     });
   } catch (error) {
-    console.error('Error fetching evaluations:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Error fetching evaluations:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -258,7 +258,7 @@ const getEvaluationById = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid evaluation ID' });
+      return res.status(400).json({ message: "Invalid evaluation ID" });
     }
 
     const cacheKey = `eval:${id}`;
@@ -266,7 +266,7 @@ const getEvaluationById = async (req, res) => {
     try {
       // Try to get from Redis first (using promises)
       const cachedData = await redisClient.get(cacheKey);
-      
+
       if (cachedData) {
         return res.status(200).json(JSON.parse(cachedData));
       }
@@ -275,25 +275,24 @@ const getEvaluationById = async (req, res) => {
       const evaluation = await Evaluation.findById(id).lean();
 
       if (!evaluation) {
-        return res.status(404).json({ message: 'Evaluation not found' });
+        return res.status(404).json({ message: "Evaluation not found" });
       }
 
       // Cache for 1 hour (using promises)
       await redisClient.setEx(cacheKey, 3600, JSON.stringify(evaluation));
       return res.status(200).json(evaluation);
-      
     } catch (redisError) {
-      console.error('Redis error:', redisError);
+      console.error("Redis error:", redisError);
       // Fallback to DB if Redis fails
       const evaluation = await Evaluation.findById(id).lean();
       if (!evaluation) {
-        return res.status(404).json({ message: 'Evaluation not found' });
+        return res.status(404).json({ message: "Evaluation not found" });
       }
       return res.status(200).json(evaluation);
     }
   } catch (error) {
-    console.error('Error fetching evaluation:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Error fetching evaluation:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -304,33 +303,33 @@ const updateEvaluation = async (req, res) => {
     const updateData = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid evaluation ID' });
+      return res.status(400).json({ message: "Invalid evaluation ID" });
     }
 
     // Prevent changing certain fields
-    const protectedFields = ['owner', 'useremail', 'leadID', 'createdAt'];
-    protectedFields.forEach(field => delete updateData[field]);
+    const protectedFields = ["owner", "useremail", "leadID", "createdAt"];
+    protectedFields.forEach((field) => delete updateData[field]);
 
     const evaluation = await Evaluation.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
-      lean: true
+      lean: true,
     });
 
     if (!evaluation) {
-      return res.status(404).json({ message: 'Evaluation not found' });
+      return res.status(404).json({ message: "Evaluation not found" });
     }
 
     // Update cache using new Redis syntax
     const cacheKey = `eval:${id}`;
     await redisClient.set(cacheKey, JSON.stringify(evaluation), {
-      EX: 3600 // Set expiration in seconds
+      EX: 3600, // Set expiration in seconds
     });
 
     res.status(200).json(evaluation);
   } catch (error) {
-    console.error('Error updating evaluation:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Error updating evaluation:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -340,26 +339,26 @@ const deleteEvaluation = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid evaluation ID' });
+      return res.status(400).json({ message: "Invalid evaluation ID" });
     }
 
     const evaluation = await Evaluation.findByIdAndDelete(id).lean();
 
     if (!evaluation) {
-      return res.status(404).json({ message: 'Evaluation not found' });
+      return res.status(404).json({ message: "Evaluation not found" });
     }
 
     // Clear cache
     const cacheKey = `eval:${id}`;
     redisClient.del(cacheKey);
 
-    res.status(200).json({ 
-      message: 'Evaluation deleted successfully',
-      deletedEvaluation: evaluation
+    res.status(200).json({
+      message: "Evaluation deleted successfully",
+      deletedEvaluation: evaluation,
     });
   } catch (error) {
-    console.error('Error deleting evaluation:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Error deleting evaluation:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -371,42 +370,41 @@ const getQueueStatus = async (req, res) => {
       evaluationQueue.getWaitingCount(),
       evaluationQueue.getActiveCount(),
       evaluationQueue.getCompletedCount(),
-      evaluationQueue.getFailedCount()
+      evaluationQueue.getFailedCount(),
     ]);
 
     // For Redis v4+, use isOpen instead of connected
-    const redisStatus = redisClient.isOpen ? 'connected' : 'disconnected';
+    const redisStatus = redisClient.isOpen ? "connected" : "disconnected";
 
     res.status(200).json({
-      status: 'operational',
+      status: "operational",
       queueStats: {
         waiting: counts[0],
         active: counts[1],
         completed: counts[2],
-        failed: counts[3]
+        failed: counts[3],
       },
-      redisStatus
+      redisStatus,
     });
   } catch (error) {
     res.status(500).json({
-      status: 'error',
-      error: error.message
+      status: "error",
+      error: error.message,
     });
   }
 };
 
 // Total count of evaluations
-const totalevaluationcounts = AsyncHandler(async(req,res)=>{
+const totalevaluationcounts = AsyncHandler(async (req, res) => {
   const count = await Evaluation.countDocuments();
-  res.status(200).json({success:true,count})
-})
+  res.status(200).json({ success: true, count });
+});
 
 // Filter evaluations by date range and optional agent/teamleader
 const datefilterevaluation = async (req, res) => {
   try {
-    const { startDate, endDate, agentName,  teamleader} = req.query;
+    const { startDate, endDate, agentName, teamleader } = req.query;
 
-    
     if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
@@ -414,11 +412,13 @@ const datefilterevaluation = async (req, res) => {
       });
     }
 
-    
     const formattedStartDate = new Date(startDate);
     const formattedEndDate = new Date(endDate);
 
-    if (isNaN(formattedStartDate.getTime()) || isNaN(formattedEndDate.getTime())) {
+    if (
+      isNaN(formattedStartDate.getTime()) ||
+      isNaN(formattedEndDate.getTime())
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid date format. Use YYYY-MM-DD.",
@@ -436,15 +436,11 @@ const datefilterevaluation = async (req, res) => {
       query.teamleader = { $regex: new RegExp(teamleader, "i") };
     }
 
-  
     if (agentName && agentName.trim() !== "") {
       query.agentName = { $regex: new RegExp(agentName, "i") };
     }
 
-   
-
     const filteredData = await Evaluation.find(query);
-
 
     if (!filteredData || filteredData.length === 0) {
       return res.status(404).json({
@@ -483,7 +479,6 @@ const datefilterevaluation = async (req, res) => {
 //   }
 // };
 
-
 // List evaluations belonging to a specific owner id
 const getEvaluationsByOwner = AsyncHandler(async (req, res) => {
   const { ownerId } = req.params;
@@ -491,12 +486,14 @@ const getEvaluationsByOwner = AsyncHandler(async (req, res) => {
   const evaluations = await Evaluation.find({ owner: ownerId });
 
   if (!evaluations || evaluations.length === 0) {
-    return res.status(404).json({ message: "No evaluations found for this owner" });
+    return res
+      .status(404)
+      .json({ message: "No evaluations found for this owner" });
   }
 
   res.json({
     count: evaluations.length,
-    evaluations
+    evaluations,
   });
 });
 
@@ -506,7 +503,7 @@ const getEvaluationsByAgentName = AsyncHandler(async (req, res) => {
 
     // case-insensitive search
     const evaluation = await Evaluation.find({
-      agentName: { $regex: new RegExp(`^${agentName}$`, "i") }
+      agentName: { $regex: new RegExp(`^${agentName}$`, "i") },
     }).sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: evaluation });
@@ -522,7 +519,7 @@ const getEvaluationsByUseremail = AsyncHandler(async (req, res) => {
 
     // case-insensitive search
     const evaluation = await Evaluation.find({
-      useremail: { $regex: new RegExp(`^${useremail}$`, "i") }
+      useremail: { $regex: new RegExp(`^${useremail}$`, "i") },
     }).sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: evaluation });
@@ -538,13 +535,13 @@ const dailyEvaluationFormSubmit = async (req, res) => {
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
-    res.json(data.map(item => ({ date: item._id, count: item.count })));
+    res.json(data.map((item) => ({ date: item._id, count: item.count })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -553,27 +550,21 @@ const dailyEvaluationFormSubmit = async (req, res) => {
 const getEvaluationsPublishedByUseremail = async (req, res) => {
   try {
     const { useremail } = req.params;
-    
-    const evaluations = await Evaluation.find({ 
-      $or: [
-        { userEmail: useremail },
-        { email: useremail }
-      ],
-      $or: [
-        { status: 'published' },
-        { submissionSource: 'frontend' }
-      ]
+
+    const evaluations = await Evaluation.find({
+      $or: [{ userEmail: useremail }, { email: useremail }],
+      $or: [{ status: "published" }, { submissionSource: "frontend" }],
     }).sort({ publishedAt: -1 });
 
     res.status(200).json({
       success: true,
       data: evaluations,
-      count: evaluations.length
+      count: evaluations.length,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -581,31 +572,24 @@ const getEvaluationsPublishedByUseremail = async (req, res) => {
 const getEvaluationsDraftsByUseremail = async (req, res) => {
   try {
     const { useremail } = req.params;
-    
-    const evaluations = await Evaluation.find({ 
-      $or: [
-        { userEmail: useremail },
-        { email: useremail }
-      ],
-      $or: [
-        { status: 'draft' },
-        { submissionSource: 'bitrix' }
-      ]
+
+    const evaluations = await Evaluation.find({
+      $or: [{ userEmail: useremail }, { email: useremail }],
+      $or: [{ status: "draft" }, { submissionSource: "bitrix" }],
     }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       data: evaluations,
-      count: evaluations.length
+      count: evaluations.length,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
-
 
 export {
   createEvaluations,
@@ -625,5 +609,5 @@ export {
   dailyEvaluationFormSubmit,
   getEvaluationsByUseremail,
   getEvaluationsPublishedByUseremail,
-  getEvaluationsDraftsByUseremail
+  getEvaluationsDraftsByUseremail,
 };

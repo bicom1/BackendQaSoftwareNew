@@ -1,5 +1,29 @@
 const mongoose = require("mongoose");
 
+// ✅ Reusable sub-schema for each evaluation field
+const criteriaSchema = new mongoose.Schema(
+  {
+    value: {
+      type: String,
+      default: null, // can now accept any string value
+    },
+    reason: {
+      type: String,
+      default: null, // can now accept any string value
+    },
+    comment: {
+      type: String,
+      default: "",
+    },
+    points: {
+      type: Number,
+      default: 0,
+    },
+  },
+  { _id: false }
+);
+
+// ✅ Main Evaluation Schema
 const evaluationSchema = new mongoose.Schema(
   {
     owner: {
@@ -9,73 +33,69 @@ const evaluationSchema = new mongoose.Schema(
     },
     useremail: {
       type: String,
-      required: [false, "field is require"],
+      required: false,
     },
     leadID: {
       type: Number,
-      required: [false, "Lead ID is required"],
       validate: {
         validator: Number.isInteger,
-        message: "{VALUE} is not an integer value"
-    }
-   },
+        message: "{VALUE} is not an integer value",
+      },
+    },
     agentName: {
       type: String,
-      required: [false, "field is require"],
+      required: false,
     },
     mod: {
       type: String,
-      required: [false, "field is require"],
+      required: false,
     },
     teamleader: {
       type: String,
-      required: [false, "field is require"],
+      required: false,
     },
-    greetings: {
-      type: String,
-    },
-    accuracy: {
-      type: String,
-    },
-    building: {
-      type: String,
-    },
-    presenting: {
-      type: String,
-    },
-    closing: {
-      type: String,
-    },
-    bonus: {
-      type: String,
-    },
+
+    // ✅ Criteria sections (each supports nested objects)
+    greetings: criteriaSchema,
+    responsetime: criteriaSchema,
+    accuracy: criteriaSchema,
+    building: criteriaSchema,
+    presenting: criteriaSchema,
+    closing: criteriaSchema,
+    bonus: criteriaSchema,
+
     evaluationsummary: {
       type: String,
+      default: "",
     },
-    rating: {             
+    rating: {
       type: Number,
       default: 0,
     },
     status: {
       type: String,
-      enum: ['draft', 'published', 'archived'],
-      default: 'draft'
+      enum: ["draft", "published", "archived"],
+      default: "draft",
     },
     submissionSource: {
       type: String,
-      enum: ['frontend', 'bitrix'],
-      default: 'frontend' 
+      enum: ["frontend", "bitrix"],
+      default: "frontend",
     },
     publishedAt: {
-      type: Date
+      type: Date,
     },
     bitrixSubmitted: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
+    audio: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.models.Evaluation || mongoose.model("Evaluation", evaluationSchema);
-
+module.exports =
+  mongoose.models.Evaluation || mongoose.model("Evaluation", evaluationSchema);

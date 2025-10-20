@@ -16,7 +16,7 @@ const {
   publishEscalation,
   getEscalationsByUserEmail,
   getEscalationsPublishedByUserEmail,
-  getEscalationsDraftsByUserEmail
+  getEscalationsDraftsByUserEmail,
 } = require("../controllers/escalationController");
 
 const router = express.Router();
@@ -43,53 +43,55 @@ const upload = multer({ storage });
 
 // CRUD routes - PUT STATIC ROUTES FIRST
 router.get("/totalescalationscounts", totalescalationscounts);
-router.get('/dailyescalationformsubmit', dailyEscalationFormSubmit);
-router.get('/datefiltereescalation', datefilterescalation);
+router.get("/dailyescalationformsubmit", dailyEscalationFormSubmit);
+router.get("/datefiltereescalation", datefilterescalation);
 router.get("/owner/:ownerId", getEscalationsByOwner);
 router.get("/agent/:agentName", getEscalationsByAgentName);
 router.get("/useremail/:useremail", getEscalationsByUserEmail);
-router.get("/useremail/:useremail/published", getEscalationsPublishedByUserEmail);
+router.get(
+  "/useremail/:useremail/published",
+  getEscalationsPublishedByUserEmail
+);
 router.get("/useremail/:useremail/drafts", getEscalationsDraftsByUserEmail);
 
 router.get("/", getEscalations);
 router.get("/:id", getEscalationById);
 
-
 router.put("/:id", upload.single("audio"), updateEscalation);
-router.patch('/escalation-patch/:id', authMiddleware, escalationPatch);      
-
+router.patch("/escalation-patch/:id", authMiddleware, escalationPatch);
 
 router.delete("/:id", deleteEscalation);
 
 // Bitrix webhook - creates draft
-router.post('/webhook/escalation', createEscalation);
+router.post("/webhook/escalation", createEscalation);
 
 // Frontend form - publishes immediately
-router.post('/escalations/frontend', createEscalationFromFrontend);
+router.post("/escalations/frontend", createEscalationFromFrontend);
 
 // Publish existing draft
-router.patch('/escalations/:id/publish', publishEscalation);
+router.patch("/escalations/:id/publish", publishEscalation);
 
 // Get escalations by status
-router.get('/escalations/published', async (req, res) => {
+router.get("/escalations/published", async (req, res) => {
   try {
-    const escalations = await Escalation.find({ status: 'published' }).sort({ publishedAt: -1 });
+    const escalations = await Escalation.find({ status: "published" }).sort({
+      publishedAt: -1,
+    });
     res.json({ success: true, data: escalations });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-router.get('/escalations/drafts', async (req, res) => {
+router.get("/escalations/drafts", async (req, res) => {
   try {
-    const escalations = await Escalation.find({ status: 'draft' }).sort({ createdAt: -1 });
+    const escalations = await Escalation.find({ status: "draft" }).sort({
+      createdAt: -1,
+    });
     res.json({ success: true, data: escalations });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-
-
 
 module.exports = router;
