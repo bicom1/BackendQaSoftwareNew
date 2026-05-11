@@ -24,6 +24,7 @@ exports.createMarketing = async (req, res) => {
 
     const data = {
       owner: req.user._id,
+      useremail: user.email,
       leadID: req.body.leadId,
       teamleader: req.body.teamleader,
       branch: req.body.branch,
@@ -71,6 +72,7 @@ exports.createBulkMarketing = async (req, res) => {
     // Validate each entry
     const validatedEntries = entries.map(entry => ({
       owner: req.user._id,
+      useremail: req.user?.email,
       leadID: entry.leadId,
       teamleader: entry.teamleader,
       branch: entry.branch,
@@ -132,6 +134,78 @@ exports.getMarketing = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+// Admin/QC: get all marketing entries across users
+exports.getAllMarketingAdmin = async (req, res) => {
+  try {
+    const role = (req.user?.role || "").toString().toLowerCase();
+    const isPrivileged =
+      role.includes("admin") || role.includes("qc") || role === "superadmin";
+    if (!isPrivileged) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized",
+      });
+    }
+
+    const { page = 1, limit = 20, ...filters } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const query = { ...filters };
+
+    const [records, count] = await Promise.all([
+      marketingModel
+        .find(query)
+        .populate("owner", "name email")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      marketingModel.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      count,
+      data: records,
+      meta: {
+        totalPages: Math.ceil(count / Number(limit)),
+        currentPage: Number(page),
+        limit: Number(limit),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message, success: false });
+  }
+};
+
+// Admin/QC: get marketing by submitter email
+exports.getMarketingByUseremailAdmin = async (req, res) => {
+  try {
+    const role = (req.user?.role || "").toString().toLowerCase();
+    const isPrivileged =
+      role.includes("admin") || role.includes("qc") || role === "superadmin";
+    if (!isPrivileged) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized",
+      });
+    }
+
+    const { useremail } = req.params;
+    const records = await marketingModel
+      .find({ useremail: { $regex: new RegExp(`^${useremail}$`, "i") } })
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: records.length,
+      data: records,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message, success: false });
   }
 };
 

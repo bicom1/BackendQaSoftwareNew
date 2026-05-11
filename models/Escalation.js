@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const escalationSchema = new mongoose.Schema(
   {
@@ -7,31 +7,11 @@ const escalationSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    useremail: {
-      type: String,
-      required: true,
-      lowercase: true,
-      trim: true,
-    },
-    leadID: {
-      type: String,
-      required: true,
-    },
-    agentName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    teamleader: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    evaluatedby: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    useremail: { type: String, required: true, lowercase: true, trim: true },
+    leadID: { type: String, required: true },
+    agentName: { type: String, required: true, trim: true },
+    teamleader: { type: String, required: true, trim: true },
+    evaluatedby: { type: String, required: true, trim: true },
     leadSource: {
       type: String,
       required: true,
@@ -52,10 +32,7 @@ const escalationSchema = new mongoose.Schema(
       required: true,
       enum: ["good", "average", "bad"],
     },
-    leadStatus: {
-      type: String,
-      required: true,
-    },
+    leadStatus: { type: String, required: true },
     escSeverity: {
       type: String,
       required: true,
@@ -72,7 +49,6 @@ const escalationSchema = new mongoose.Schema(
         "Other",
       ],
     },
-
     escAction: {
       type: String,
       required: true,
@@ -83,33 +59,27 @@ const escalationSchema = new mongoose.Schema(
         "Other",
       ],
     },
-    otherAction: {
-      type: String,
-      trim: true,
-      default: "",
-    },
+    otherAction: { type: String, trim: true, default: "" },
+    isOther: { type: Boolean, default: false },
+    documentation: { type: String, default: "" },
+    successmaration: { type: String, required: true, trim: true },
+    audio: { type: String, default: null },
 
-   
-    isOther: {
-      type: Boolean,
-      default: false,
-    },
-
-    documentation: {
+    // Draft/Published workflow (used by QC dashboards)
+    status: {
       type: String,
-      default: "",
+      enum: ["draft", "published", "archived"],
+      default: "draft",
     },
-    successmaration: {
+    submissionSource: {
       type: String,
-      required: true,
-      trim: true,
+      enum: ["frontend", "bitrix"],
+      default: "frontend",
     },
-    audio: {
-      type: String,
-      default: null,
-    },
+    publishedAt: { type: Date },
+    bitrixSubmitted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Escalation", escalationSchema);
+module.exports = mongoose.model("Escalation", escalationSchema);

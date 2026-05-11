@@ -85,13 +85,18 @@ const publishEvaluations = AsyncHandler(async (req, res) => {
     }
 
     if (existingEvaluation.status === "published") {
-      return res.status(400).json({
-        success: false,
-        message: "Evaluation is already published",
+      const fresh = await Evaluation.findById(id)
+        .populate("owner", "name email")
+        .lean();
+      return res.status(200).json({
+        success: true,
+        message: "Already published",
+        data: fresh,
+        userEmail: existingEvaluation.useremail,
       });
     }
 
-    // Update evaluation status
+    // Update evaluation status (no populate on non-existent "user" path — that caused runtime errors)
     const evaluation = await Evaluation.findByIdAndUpdate(
       id,
       {
@@ -99,10 +104,9 @@ const publishEvaluations = AsyncHandler(async (req, res) => {
         publishedAt: new Date(),
       },
       { new: true, runValidators: true }
-    ).populate("user", "email name"); // Populate user data if you have user reference
+    ).populate("owner", "name email");
 
-    // If you store email directly in evaluation document
-    const userEmail = evaluation.useremail; // or evaluation.user?.email
+    const userEmail = evaluation.useremail;
 
     console.log("Published evaluation for user:", userEmail);
 
@@ -296,19 +300,56 @@ const getEvaluationById = async (req, res) => {
   }
 };
 
+// Normalize edit-form payloads: criteria must be { value, points, comment } not plain strings.
+const CRITERION_PATHS = [
+  "greetings",
+  "responsetime",
+  "accuracy",
+  "building",
+  "presenting",
+  "closing",
+  "bonus",
+];
+
+const normalizeCriterionUpdate = (val) => {
+  if (val == null) return undefined;
+  if (typeof val === "object" && !Array.isArray(val) && val !== null) {
+    return val;
+  }
+  if (typeof val === "string") {
+    const s = val.trim();
+    return { value: s || null, points: 0, comment: "" };
+  }
+  return val;
+};
+
 // Update mutable fields of an evaluation and refresh cache
 const updateEvaluation = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid evaluation ID" });
     }
 
     // Prevent changing certain fields
-    const protectedFields = ["owner", "useremail", "leadID", "createdAt"];
+    const protectedFields = [
+      "owner",
+      "useremail",
+      "leadID",
+      "createdAt",
+      "status",
+      "publishedAt",
+    ];
     protectedFields.forEach((field) => delete updateData[field]);
+
+    CRITERION_PATHS.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(updateData, key)) {
+        const normalized = normalizeCriterionUpdate(updateData[key]);
+        if (normalized !== undefined) updateData[key] = normalized;
+      }
+    });
 
     const evaluation = await Evaluation.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -517,9 +558,18 @@ const getEvaluationsByUseremail = AsyncHandler(async (req, res) => {
   try {
     const { useremail } = req.params;
 
-    // case-insensitive search
+    const email = (useremail || "").toString().trim();
+    const rx = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+
+    // case-insensitive search across common email fields (legacy + current)
     const evaluation = await Evaluation.find({
-      useremail: { $regex: new RegExp(`^${useremail}$`, "i") },
+      $or: [
+        { useremail: { $regex: rx } },
+        { userEmail: { $regex: rx } },
+        { email: { $regex: rx } },
+        { evaluatedby: { $regex: rx } },
+        { evaluatedBy: { $regex: rx } },
+      ],
     }).sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: evaluation });
@@ -551,10 +601,23 @@ const getEvaluationsPublishedByUseremail = async (req, res) => {
   try {
     const { useremail } = req.params;
 
+    const email = (useremail || "").toString().trim();
+    const rx = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+
     const evaluations = await Evaluation.find({
-      $or: [{ userEmail: useremail }, { email: useremail }],
-      $or: [{ status: "published" }, { submissionSource: "frontend" }],
-    }).sort({ publishedAt: -1 });
+      $and: [
+        {
+          $or: [
+            { useremail: { $regex: rx } },
+            { userEmail: { $regex: rx } },
+            { email: { $regex: rx } },
+            { evaluatedby: { $regex: rx } },
+            { evaluatedBy: { $regex: rx } },
+          ],
+        },
+        { $or: [{ status: "published" }, { submissionSource: "frontend" }] },
+      ],
+    }).sort({ publishedAt: -1, createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -573,9 +636,22 @@ const getEvaluationsDraftsByUseremail = async (req, res) => {
   try {
     const { useremail } = req.params;
 
+    const email = (useremail || "").toString().trim();
+    const rx = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+
     const evaluations = await Evaluation.find({
-      $or: [{ userEmail: useremail }, { email: useremail }],
-      $or: [{ status: "draft" }, { submissionSource: "bitrix" }],
+      $and: [
+        {
+          $or: [
+            { useremail: { $regex: rx } },
+            { userEmail: { $regex: rx } },
+            { email: { $regex: rx } },
+            { evaluatedby: { $regex: rx } },
+            { evaluatedBy: { $regex: rx } },
+          ],
+        },
+        { $or: [{ status: "draft" }, { submissionSource: "bitrix" }] },
+      ],
     }).sort({ createdAt: -1 });
 
     res.status(200).json({

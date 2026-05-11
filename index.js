@@ -12,6 +12,7 @@ const colors = require("colors");
 const helmet = require("helmet");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const qcDashboardRoutes = require("./routes/qcDashboardRoutes");
 
 // Config
 const { validateEnv } = require("./config/env");
@@ -29,23 +30,14 @@ const PORT = process.env.PORT || 3001;
 // Validate environment variables
 validateEnv();
 
-// Mongo + Redis connection (safe)
-(async () => {
-  try {
-    await connectDB();
-    await redisClient.connect();
-    console.log("✅ MongoDB & Redis connected".green);
-  } catch (err) {
-    console.error("❌ Failed to initialize services:".red, err);
-    process.exit(1); // exit safely if DB or Redis fail
-  }
-})();
-
 // Middleware
 app.use(helmet());
 app.use(
   cors({
-    origin: "http://localhost:5173", // adjust for frontend
+    origin: [
+      "http://localhost:5173", // local frontend (development)
+      // "https://qasoftwaretesting.vercel.app", // live frontend (Vercel)
+    ],
     credentials: true,
   })
 );
@@ -63,8 +55,8 @@ app.use("/api/teamlead", require("./routes/teamleadRoutes"));
 app.use("/api/analytics", require("./routes/analyticsRoutes"));
 app.use("/api/agents", require("./routes/agentsRoutes"));
 app.use("/api/feedback", require("./routes/feedbackRoutes"));
+app.use("/api", qcDashboardRoutes);
 
-// Health check
 app.get("/health", (req, res) => {
   res.json({
     status: "OK",
@@ -116,9 +108,18 @@ process.on("uncaughtException", (err) => {
   process.exit(1); // safest option to avoid unknown state
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${String(PORT).bgWhite}`.yellow);
-});
+(async function start() {
+  try {
+    await connectDB();
+    await redisClient.connect();
+    console.log("✅ MongoDB & Redis connected".green);
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${String(PORT).bgWhite}`.yellow);
+    });
+  } catch (err) {
+    console.error("❌ Failed to initialize services (MongoDB or Redis):", err);
+    process.exit(1);
+  }
+})();
 
 module.exports = { app, redisClient };

@@ -349,3 +349,58 @@ export const agentFormSubmits = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+/** ===============================
+ *  🧾 Content Overview (Draft/Published + Recent Activity)
+ *  =============================== */
+export const getContentOverview = async (req, res) => {
+  try {
+    const draftCount = await Evaluation.countDocuments({ status: "draft" });
+    const publishedCount = await Evaluation.countDocuments({ status: "published" });
+
+    const latest = await Evaluation.find({})
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate("owner", "name")
+      .select("agentName owner status createdAt publishedAt mod leadID")
+      .lean();
+
+    const recentActivity = latest.map((e) => {
+      const actorName =
+        e?.agentName ||
+        e?.owner?.name ||
+        (typeof e?.useremail === "string" ? e.useremail : null) ||
+        "Unknown";
+
+      const isPublished =
+        e?.status === "published" || (e?.publishedAt && !Number.isNaN(Date.parse(e.publishedAt)));
+
+      const action = isPublished ? "published content" : "submitted a draft";
+
+      return {
+        id: String(e._id),
+        actorName,
+        action,
+        createdAt: e?.publishedAt || e?.createdAt,
+        meta: {
+          mod: e?.mod || null,
+          leadID: typeof e?.leadID === "number" ? e.leadID : null,
+        },
+      };
+    });
+
+    res.json({
+      success: true,
+      draftCount,
+      publishedCount,
+      recentActivity,
+    });
+  } catch (error) {
+    console.error("Content overview analytics error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Content overview analytics failed",
+      error: error.message,
+    });
+  }
+};

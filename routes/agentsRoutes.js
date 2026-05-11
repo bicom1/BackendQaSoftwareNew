@@ -1,32 +1,19 @@
-const express = require('express');
-const { getLowRatingCalls, getLowRatingChats } = require('../controllers/agentController');
+const express = require("express");
+const {
+  getLowRatingCalls,
+  getLowRatingChats,
+  getAgentDashboard,
+  getAgentTrends,
+} = require("../controllers/agentController");
+
 const router = express.Router();
 
-
+// Existing routes
 router.get("/low-rating", getLowRatingCalls);
 router.get("/low-rating-chats", getLowRatingChats);
 
-
-
-
-// router.post('/call-b24-api',callBitrixApi);
-// router.get('/crmleadlist', crmleadlist)
-// router.get('/leads', getAllLeads);
-// router.post('/getFilteredLeads', getFilteredLeads)
-
-
-
+// New dashboard routes
+router.get("/dashboard/:agentName", getAgentDashboard);
+router.get("/trends/:agentName", getAgentTrends);
 
 module.exports = router;
-
-
-
-
-
-
-
-
-
-
-
-

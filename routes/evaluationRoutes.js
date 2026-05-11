@@ -28,13 +28,14 @@ router.post("/bulk", createBulkEvaluations);
 router.get("/getevaluations", getEvaluations);
 router.get("/getevaluationbyid/:id", getEvaluationById);
 router.get("/queue/status", getQueueStatus);
-router.put("/evaluations/:id", updateEvaluation);
-router.delete("/evaluations/:id", deleteEvaluation);
+router.put("/:id", updateEvaluation);
+router.delete("/:id", deleteEvaluation);
 router.get("/totalevaluationcounts", totalevaluationcounts);
 router.get("/datefilterevaluation", datefilterevaluation);
 router.get("/owner/:ownerId", getEvaluationsByOwner);
 router.get("/agent/:agentName", getEvaluationsByAgentName);
 router.get("/useremail/:useremail", getEvaluationsByUseremail);
+
 router.get(
   "/useremail/:useremail/published",
   getEvaluationsPublishedByUseremail

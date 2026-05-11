@@ -310,9 +310,18 @@ const getEscalationsByUserEmail = AsyncHandler(async (req, res) => {
   try {
     const { useremail } = req.params;
 
-    // case-insensitive search
+    const email = (useremail || "").toString().trim();
+    const rx = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+
+    // case-insensitive search across common email fields (legacy + current)
     const escalations = await Escalation.find({
-      useremail: { $regex: new RegExp(`^${useremail}$`, "i") },
+      $or: [
+        { useremail: { $regex: rx } },
+        { userEmail: { $regex: rx } },
+        { email: { $regex: rx } },
+        { escalatedby: { $regex: rx } },
+        { escalatedBy: { $regex: rx } },
+      ],
     }).sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: escalations });
@@ -374,10 +383,23 @@ const getEscalationsPublishedByUserEmail = async (req, res) => {
   try {
     const { useremail } = req.params;
 
+    const email = (useremail || "").toString().trim();
+    const rx = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+
     const escalations = await Escalation.find({
-      $or: [{ userEmail: useremail }, { email: useremail }],
-      $or: [{ status: "published" }, { submissionSource: "frontend" }],
-    }).sort({ publishedAt: -1 });
+      $and: [
+        {
+          $or: [
+            { useremail: { $regex: rx } },
+            { userEmail: { $regex: rx } },
+            { email: { $regex: rx } },
+            { escalatedby: { $regex: rx } },
+            { escalatedBy: { $regex: rx } },
+          ],
+        },
+        { $or: [{ status: "published" }, { submissionSource: "frontend" }] },
+      ],
+    }).sort({ publishedAt: -1, createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -396,9 +418,22 @@ const getEscalationsDraftsByUserEmail = async (req, res) => {
   try {
     const { useremail } = req.params;
 
+    const email = (useremail || "").toString().trim();
+    const rx = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+
     const escalations = await Escalation.find({
-      $or: [{ userEmail: useremail }, { email: useremail }],
-      $or: [{ status: "draft" }, { submissionSource: "bitrix" }],
+      $and: [
+        {
+          $or: [
+            { useremail: { $regex: rx } },
+            { userEmail: { $regex: rx } },
+            { email: { $regex: rx } },
+            { escalatedby: { $regex: rx } },
+            { escalatedBy: { $regex: rx } },
+          ],
+        },
+        { $or: [{ status: "draft" }, { submissionSource: "bitrix" }] },
+      ],
     }).sort({ createdAt: -1 });
 
     res.status(200).json({

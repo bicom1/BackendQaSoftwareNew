@@ -6,6 +6,7 @@ const Escalation = require("../models/Escalation");
 const Evaluation = require("../models/Evaluation");
 const Marketing = require("../models/Marketing");
 
+// ===================== Webhook for Escalation/Evaluation/Marketing =====================
 exports.handleWebhook = async (req, res) => {
   try {
     const { type, leadID, agentName, leadSource, ...rest } = req.body;
@@ -24,46 +25,35 @@ exports.handleWebhook = async (req, res) => {
         leadID,
         agentName,
         leadSource,
-        ...rest, // extra optional fields
+        ...rest,
       });
-      return res.json({
-        success: true,
-        message: "Escalation saved via webhook",
-        data: savedData,
-      });
-    }
-
-    if (type === "evaluation") {
+    } else if (type === "evaluation") {
       savedData = await Evaluation.create({
         leadID,
         agentName,
         leadSource,
         ...rest,
       });
-      return res.json({
-        success: true,
-        message: "Evaluation saved via webhook",
-        data: savedData,
-      });
-    }
-
-    if (type === "marketing") {
+    } else if (type === "marketing") {
       savedData = await Marketing.create({
         leadID,
         agentName,
         leadSource,
         ...rest,
       });
-      return res.json({
-        success: true,
-        message: "Marketing saved via webhook",
-        data: savedData,
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid type. Use escalation, evaluation, or marketing",
       });
     }
 
-    return res.status(400).json({
-      success: false,
-      message: "Invalid type. Use escalation, evaluation, or marketing",
+    res.json({
+      success: true,
+      message: `${
+        type.charAt(0).toUpperCase() + type.slice(1)
+      } saved via webhook`,
+      data: savedData,
     });
   } catch (error) {
     console.error("Webhook Error:", error);
@@ -74,119 +64,85 @@ exports.handleWebhook = async (req, res) => {
   }
 };
 
-// Get and store leads
+// ===================== GET all Leads from MongoDB =====================
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await callBitrixApi("crm.lead.list");
-    console.log("Leads fetched:", leads?.result?.length);
-
-    if (leads.result && Array.isArray(leads.result)) {
-      await Promise.all(
-        leads.result.map(async (item) => {
-          const exists = await Lead.findOne({ "data.ID": item.ID });
-          if (!exists) {
-            await Lead.create({ data: item });
-          }
-        })
-      );
-    }
-
-    res.json(leads);
+    const leads = await Lead.find();
+    res.json({ success: true, data: leads });
   } catch (err) {
-    console.error("Error in getLeads:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching leads:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Get and store contacts
+// ===================== GET all Contacts from MongoDB =====================
 exports.getContacts = async (req, res) => {
   try {
-    const contacts = await callBitrixApi("crm.contact.list");
-
-    if (contacts.result && Array.isArray(contacts.result)) {
-      await Promise.all(
-        contacts.result.map(async (item) => {
-          const exists = await Contact.findOne({ "data.ID": item.ID });
-          if (!exists) {
-            await Contact.create({ data: item });
-          }
-        })
-      );
-    }
-
-    res.json(contacts);
+    const contacts = await Contact.find();
+    res.json({ success: true, data: contacts });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching contacts:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Get and store deals
+// ===================== GET all Deals from MongoDB =====================
 exports.getDeals = async (req, res) => {
   try {
-    const deals = await callBitrixApi("crm.deal.list");
-
-    if (deals.result && Array.isArray(deals.result)) {
-      await Promise.all(
-        deals.result.map(async (item) => {
-          const exists = await Deal.findOne({ "data.ID": item.ID });
-          if (!exists) {
-            await Deal.create({ data: item });
-          }
-        })
-      );
-    }
-
-    res.json(deals);
+    const deals = await Deal.find();
+    res.json({ success: true, data: deals });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching deals:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Get lead by ID
+// ===================== GET a single Lead by ID =====================
 exports.getLeadById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const lead = await callBitrixApi("crm.lead.get", { id });
-    res.json(lead);
+    const lead = await Lead.findOne({ "data.ID": id });
+    if (lead) return res.json({ success: true, source: "mongodb", data: lead });
+
+    // fallback to Bitrix if not in MongoDB
+    const bitrixResponse = await callBitrixApi("crm.lead.get", { id });
+    if (!bitrixResponse.result) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Lead not found" });
+    }
+
+    const saved = await Lead.create({ data: bitrixResponse.result });
+    res.json({ success: true, source: "bitrix24", data: saved });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching lead by ID:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// ===================== Search Leads by TITLE =====================
 exports.searchLeads = async (req, res) => {
   const query = req.query.q;
-
-  if (!query) {
+  if (!query)
     return res.status(400).json({ error: "Search query (q) is required" });
-  }
 
   try {
-    // 1. Try MongoDB first
     const mongoResults = await Lead.find({
       "data.TITLE": { $regex: query, $options: "i" },
     });
-
-    if (mongoResults.length > 0) {
-      console.log("Returning leads from MongoDB");
+    if (mongoResults.length > 0)
       return res.json({ source: "mongodb", result: mongoResults });
-    }
 
-    // 2. Not found → fallback to Bitrix24
-    console.log("Querying Bitrix24...");
     const bitrixResponse = await callBitrixApi("crm.lead.list", {
       filter: { TITLE: query },
     });
-
     const bitrixLeads = bitrixResponse?.result || [];
 
-    // 3. Store results in MongoDB (if not already)
     await Promise.all(
       bitrixLeads.map(async (item) => {
         const exists = await Lead.findOne({ "data.ID": item.ID });
-        if (!exists) {
-          await Lead.create({ data: item });
-        }
+        if (!exists) await Lead.create({ data: item });
       })
     );
 
@@ -197,66 +153,48 @@ exports.searchLeads = async (req, res) => {
   }
 };
 
+// ===================== GET Lead by Number =====================
 exports.getLeadByNumber = async (req, res) => {
   const leadId = req.params.id;
-
-  if (!leadId) {
-    return res.status(400).json({ error: "Lead ID is required" });
-  }
+  if (!leadId) return res.status(400).json({ error: "Lead ID is required" });
 
   try {
-    // 1. Check in MongoDB first
     const lead = await Lead.findOne({ "data.ID": leadId });
+    if (lead) return res.json({ source: "mongodb", result: lead });
 
-    if (lead) {
-      console.log("Lead found in MongoDB");
-      return res.json({ source: "mongodb", result: lead });
-    }
-
-    // 2. Not found → fetch from Bitrix24
-    console.log("Fetching lead from Bitrix24...");
     const bitrixResponse = await callBitrixApi("crm.lead.get", { id: leadId });
+    if (!bitrixResponse?.result)
+      return res.status(404).json({ error: "Lead not found" });
 
-    if (bitrixResponse?.result) {
-      // Save to MongoDB
-      await Lead.create({ data: bitrixResponse.result });
-
-      return res.json({ source: "bitrix24", result: bitrixResponse.result });
-    } else {
-      return res.status(404).json({ error: "Lead not found in Bitrix24" });
-    }
+    const saved = await Lead.create({ data: bitrixResponse.result });
+    res.json({ source: "bitrix24", result: saved });
   } catch (err) {
     console.error("getLeadByNumber error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
+// ===================== Bitrix Lead Button =====================
 exports.bitrixLeadButton = async (req, res) => {
   try {
     const { leadId } = req.body;
-
-    if (!leadId) {
+    if (!leadId)
       return res
         .status(400)
         .json({ success: false, message: "leadId is required" });
-    }
 
     const leadData = await callBitrixApi("crm.lead.get", { ID: leadId });
-
-    return res.json({
-      success: true,
-      lead: leadData.result,
-    });
+    res.json({ success: true, lead: leadData.result });
   } catch (error) {
     console.error("Error in bitrixLeadButton:", error.message);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: "Something went wrong while fetching lead details",
     });
   }
 };
 
-// Test route
+// ===================== Test Route =====================
 exports.testRoute = (req, res) => {
   res.send("Bitrix24 route is working!");
 };

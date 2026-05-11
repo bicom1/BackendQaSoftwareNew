@@ -6,8 +6,17 @@ const connectDB = async () => {
     console.log(`Database connected: ${mongoose.connection.host}`.bgCyan);
   } catch (err) {
     console.error('Database connection failed:'.red, err);
-    process.exit(1);
+    if (err.code === 'ENOTFOUND' && err.syscall === 'querySrv') {
+      console.error(
+        '\nDNS could not resolve your MongoDB Atlas host (querySrv ENOTFOUND). ' +
+          'That hostname is not on the public internet — usually wrong URI, deleted cluster, or typo.\n' +
+          'Fix: MongoDB Atlas → Database → Connect → copy the current mongodb+srv:// URI into MONGO_URL, ' +
+          'or use local MongoDB: MONGO_URL=mongodb://127.0.0.1:27017/yourdb\n'.yellow
+      );
+    }
+    throw err;
   }
 };
 
 module.exports = connectDB;
+

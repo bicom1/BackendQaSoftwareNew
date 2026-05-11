@@ -7,6 +7,12 @@ const MarketingSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    useremail: {
+      type: String,
+      required: false,
+      lowercase: true,
+      trim: true,
+    },
     leadID: {
   type: Number,
   required: [true, "Lead ID is required"],
