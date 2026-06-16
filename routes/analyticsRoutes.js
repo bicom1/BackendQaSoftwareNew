@@ -7,6 +7,7 @@ const {
   getMarketingAnalytics,
   agentFormSubmits,
   getContentOverview,
+  getWeeklyStats,
 } = require("../controllers/analyticsController");
 const router = express.Router();
 
@@ -17,6 +18,6 @@ router.get('/getEvaluationAnalytics', getEvaluationAnalytics);
 router.get('/getEscalationAnalytics', getEscalationAnalytics);
 router.get('/getMarketingAnalytics', getMarketingAnalytics);
 router.get('/agent-form-submits', agentFormSubmits);
-
+router.get('/weekly-stats', getWeeklyStats);
 
 module.exports = router;

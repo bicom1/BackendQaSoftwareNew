@@ -68,8 +68,8 @@ const escalationSchema = new mongoose.Schema(
     // Draft/Published workflow (used by QC dashboards)
     status: {
       type: String,
-      enum: ["draft", "published", "archived"],
-      default: "draft",
+      enum: ["published"],
+      default: "published",
     },
     submissionSource: {
       type: String,

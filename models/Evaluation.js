@@ -74,8 +74,8 @@ const evaluationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "published", "archived"],
-      default: "draft",
+      enum: ["published"],
+      default: "published",
     },
     submissionSource: {
       type: String,

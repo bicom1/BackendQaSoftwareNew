@@ -60,7 +60,10 @@ Ensure MongoDB and Redis are running locally (or update URLs above).
 Base URL: `http://localhost:3001`
 
 - Users (`/api/users`)
-  - POST `/register-user`, `/login-user`, `/forgot-password`, `/reset-password`
+  - POST `/register-user`, `/login-user`
+  - POST `/forgot-password` (send 6-digit OTP via email, stored in Redis 10 min)
+  - POST `/verify-otp` (validate OTP, marks email as verified for reset)
+  - POST `/reset-password` (requires verified OTP; updates MongoDB password)
   - GET (auth) `/my-profile`, `/getallusers`, `/online-users`, `/online-users-count`
   - PUT (auth) `/update-status`, `/update-activity`, `/set-online`, `/set-offline`
 

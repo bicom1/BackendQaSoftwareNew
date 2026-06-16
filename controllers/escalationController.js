@@ -20,17 +20,16 @@ const createEscalation = AsyncHandler(async (req, res) => {
       payload.useremail = "";
     }
 
-    // ADD: Set as draft for Bitrix submissions
-    payload.status = "draft";
+    payload.status = "published";
     payload.submissionSource = "bitrix";
+    payload.publishedAt = new Date();
     payload.bitrixSubmitted = true;
 
-    // Save to DB as draft
     const doc = await Escalation.create(payload);
 
     res.status(201).json({
       success: true,
-      message: "Escalation saved as draft",
+      message: "Escalation saved successfully",
       data: doc,
     });
   } catch (err) {

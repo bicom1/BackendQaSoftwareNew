@@ -1,34 +1,50 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const feedbackSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
+const attachmentSchema = new mongoose.Schema(
+  {
+    filename: String,
+    originalName: String,
+    mimetype: String,
+    size: Number,
+    path: String,
   },
-  email: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  message: {
-    type: String,
-    required: true
-  },
-  rating: {
-    type: Number,
-    min: 1,
-    max: 5,
-    default: 5
-  },
-  image: {
-    type: String, // store file path or URL
-    default: null
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+  { _id: false }
+);
 
-module.exports = mongoose.model('Feedback', feedbackSchema);
+const feedbackSchema = new mongoose.Schema(
+  {
+    submitterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    submitterName: { type: String, trim: true },
+    submitterEmail: { type: String, trim: true, lowercase: true },
+    formType: {
+      type: String,
+      enum: ["evaluation", "escalation"],
+      required: true,
+    },
+    formId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    leadID: { type: String, trim: true },
+    agentName: { type: String, trim: true },
+    appealMessage: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 2000,
+    },
+    attachments: [attachmentSchema],
+    status: {
+      type: String,
+      enum: ["pending", "reviewed", "resolved"],
+      default: "pending",
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Feedback", feedbackSchema);

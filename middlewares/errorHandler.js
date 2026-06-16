@@ -1,7 +1,11 @@
 module.exports = (err, req, res, next) => {
-  console.error("Unhandled Error:".red, err.stack);
-  res.status(500).json({
+  const status = err.statusCode || err.status || 500;
+  if (status >= 500) {
+    console.error("Unhandled Error:".red, err.stack || err.message);
+  }
+  res.status(status).json({
     success: false,
-    message: "An unexpected error occurred",
+    code: err.code || "INTERNAL_ERROR",
+    message: err.message || "An unexpected error occurred",
   });
 };

@@ -3,45 +3,57 @@ const AsyncHandler = require("express-async-handler");
 const User = require("../models/usermodel");
 
 const authMiddleware = AsyncHandler(async (req, res, next) => {
-  let token;
+  const authHeader = req.headers.authorization;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer ")
-  ) {
-    try {
-      token = req.headers.authorization.split(" ")[1];
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      code: "NO_TOKEN",
+      message: "No token provided",
+    });
+  }
 
-      // Decode and verify the token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const token = authHeader.split(" ")[1];
 
-      // Get user ID from token
-      const userId = decoded.id;
-      if (!userId) {
-        res.status(401);
-        throw new Error("Invalid token payload (no user id)");
-      }
+  if (!token || token === "null" || token === "undefined") {
+    return res.status(401).json({
+      success: false,
+      code: "NO_TOKEN",
+      message: "No token provided",
+    });
+  }
 
-      // Fetch user details from DB (excluding password)
-      req.user = await User.findById(userId).select("-password");
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
 
-      if (!req.user) {
-        res.status(401);
-        throw new Error("User not found");
-      }
-
-      // Attach token payload too (so you can access name/email if signed)
-      req.userPayload = decoded;
-
-      next();
-    } catch (error) {
-      console.error("Auth Error:", error.message);
-      res.status(401);
-      throw new Error("Invalid or expired token");
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        code: "INVALID_TOKEN",
+        message: "Invalid token payload (no user id)",
+      });
     }
-  } else {
-    res.status(401);
-    throw new Error("No token provided");
+
+    req.user = await User.findById(userId).select("-password");
+
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        code: "USER_NOT_FOUND",
+        message: "User not found",
+      });
+    }
+
+    req.userPayload = decoded;
+    next();
+  } catch (error) {
+    console.error("Auth Error:", error.message);
+    return res.status(401).json({
+      success: false,
+      code: "INVALID_TOKEN",
+      message: "Invalid or expired token",
+    });
   }
 });
 

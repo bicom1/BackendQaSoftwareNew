@@ -1,12 +1,22 @@
 const express = require("express");
 const {
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
+} = require("../controllers/passwordResetController");
+const {
+  forgotPasswordLimiter,
+  verifyOtpLimiter,
+  resetPasswordLimiter,
+  signupLimiter,
+} = require("../middlewares/rateLimiters");
+const {
   registerUser,
+  signupUser,
   loginUser,
   findMyProfile,
   getAllUsers,
   logout,
-  resetPassword,
-  forgotPassword,
   totalUserCount,
   getUserSubmissionStats,
   getAllUsersSubmissionStats,
@@ -22,13 +32,16 @@ const {
   updateUser,
 } = require("../controllers/userController");
 const authMiddleware = require("../middlewares/authMiddleware");
+const optionalRegisterAuth = require("../middlewares/optionalRegisterAuth");
 const router = express.Router();
 
 // Public routes
-router.post("/register-user", registerUser);
+router.post("/signup", signupLimiter, signupUser);
+router.post("/register-user", optionalRegisterAuth, registerUser);
 router.post("/login-user", loginUser);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+router.post("/forgot-password", forgotPasswordLimiter, forgotPassword);
+router.post("/verify-otp", verifyOtpLimiter, verifyOtp);
+router.post("/reset-password", resetPasswordLimiter, resetPassword);
 
 // Protected routes
 router.get("/get-user/:id", authMiddleware, getUserById);

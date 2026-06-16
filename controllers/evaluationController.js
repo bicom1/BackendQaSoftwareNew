@@ -22,17 +22,16 @@ const createEvaluations = AsyncHandler(async (req, res) => {
       payload.useremail = "";
     }
 
-    // ADD: Set as draft for Bitrix submissions
-    payload.status = "draft";
+    payload.status = "published";
     payload.submissionSource = "bitrix";
+    payload.publishedAt = new Date();
     payload.bitrixSubmitted = true;
 
-    // Save to DB as draft
     const doc = await Evaluation.create(payload);
 
     res.status(201).json({
       success: true,
-      message: "Evaluation saved as draft",
+      message: "Evaluation saved successfully",
       data: doc,
     });
   } catch (err) {

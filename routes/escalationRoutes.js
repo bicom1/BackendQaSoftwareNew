@@ -52,8 +52,6 @@ router.get(
   "/useremail/:useremail/published",
   getEscalationsPublishedByUserEmail
 );
-router.get("/useremail/:useremail/drafts", getEscalationsDraftsByUserEmail);
-
 router.get("/", getEscalations);
 router.get("/:id", getEscalationById);
 
@@ -68,25 +66,10 @@ router.post("/webhook/escalation", createEscalation);
 // Frontend form - publishes immediately
 router.post("/escalations/frontend", createEscalationFromFrontend);
 
-// Publish existing draft
-router.patch("/escalations/:id/publish", publishEscalation);
-
-// Get escalations by status
 router.get("/escalations/published", async (req, res) => {
   try {
     const escalations = await Escalation.find({ status: "published" }).sort({
       publishedAt: -1,
-    });
-    res.json({ success: true, data: escalations });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-router.get("/escalations/drafts", async (req, res) => {
-  try {
-    const escalations = await Escalation.find({ status: "draft" }).sort({
-      createdAt: -1,
     });
     res.json({ success: true, data: escalations });
   } catch (error) {

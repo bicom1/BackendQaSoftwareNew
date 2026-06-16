@@ -22,6 +22,16 @@ const usersSchema = new mongoose.Schema(
     },
     role: {
       type: String,
+      enum: [
+        "admin",
+        "superadmin",
+        "user",
+        "agent_user",
+        "agent_admin",
+        "qc_admin",
+        "qc_user",
+      ],
+      required: [true, "Role is required"],
     },
     isOnline: {
       type: Boolean,

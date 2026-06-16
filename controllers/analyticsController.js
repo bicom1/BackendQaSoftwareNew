@@ -355,10 +355,9 @@ export const agentFormSubmits = async (req, res) => {
  *  =============================== */
 export const getContentOverview = async (req, res) => {
   try {
-    const draftCount = await Evaluation.countDocuments({ status: "draft" });
     const publishedCount = await Evaluation.countDocuments({ status: "published" });
 
-    const latest = await Evaluation.find({})
+    const latest = await Evaluation.find({ status: "published" })
       .sort({ createdAt: -1 })
       .limit(10)
       .populate("owner", "name")
@@ -372,15 +371,10 @@ export const getContentOverview = async (req, res) => {
         (typeof e?.useremail === "string" ? e.useremail : null) ||
         "Unknown";
 
-      const isPublished =
-        e?.status === "published" || (e?.publishedAt && !Number.isNaN(Date.parse(e.publishedAt)));
-
-      const action = isPublished ? "published content" : "submitted a draft";
-
       return {
         id: String(e._id),
         actorName,
-        action,
+        action: "submitted content",
         createdAt: e?.publishedAt || e?.createdAt,
         meta: {
           mod: e?.mod || null,
@@ -391,7 +385,6 @@ export const getContentOverview = async (req, res) => {
 
     res.json({
       success: true,
-      draftCount,
       publishedCount,
       recentActivity,
     });
@@ -402,5 +395,55 @@ export const getContentOverview = async (req, res) => {
       message: "Content overview analytics failed",
       error: error.message,
     });
+  }
+};
+
+/** Weekly evaluations + escalations (last 8 weeks) */
+export const getWeeklyStats = async (req, res) => {
+  try {
+    const weeks = 8;
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(start.getDate() - weeks * 7);
+
+    const [evalRows, escRows] = await Promise.all([
+      Evaluation.aggregate([
+        { $match: { createdAt: { $gte: start } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%G-W%V", date: "$createdAt" } },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+      Escalation.aggregate([
+        { $match: { createdAt: { $gte: start } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%G-W%V", date: "$createdAt" } },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+    ]);
+
+    const evalMap = Object.fromEntries(evalRows.map((r) => [r._id, r.count]));
+    const escMap = Object.fromEntries(escRows.map((r) => [r._id, r.count]));
+    const weekKeys = [
+      ...new Set([...Object.keys(evalMap), ...Object.keys(escMap)]),
+    ].sort();
+
+    const data = weekKeys.map((week) => ({
+      week,
+      evaluations: evalMap[week] || 0,
+      escalations: escMap[week] || 0,
+    }));
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Weekly stats error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -8,6 +8,7 @@
 
 require("dotenv").config();
 const express = require("express");
+const path = require("path");
 const colors = require("colors");
 const helmet = require("helmet");
 const cors = require("cors");
@@ -44,6 +45,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(requestLogger);
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Routes
 app.use("/api/users", require("./routes/userRoutes"));
@@ -52,6 +54,7 @@ app.use("/api/evaluations", require("./routes/evaluationRoutes"));
 app.use("/api/escalations", require("./routes/escalationRoutes"));
 app.use("/api/marketing", require("./routes/marketingRoutes"));
 app.use("/api/teamlead", require("./routes/teamleadRoutes"));
+app.use("/api/departments", require("./routes/departmentRoutes"));
 app.use("/api/analytics", require("./routes/analyticsRoutes"));
 app.use("/api/agents", require("./routes/agentsRoutes"));
 app.use("/api/feedback", require("./routes/feedbackRoutes"));
@@ -113,6 +116,24 @@ process.on("uncaughtException", (err) => {
     await connectDB();
     await redisClient.connect();
     console.log("✅ MongoDB & Redis connected".green);
+
+    const { verifyEmailConnection } = require("./services/emailService");
+    const emailStatus = await verifyEmailConnection();
+    if (emailStatus.ok) {
+      console.log(`✅ Email SMTP ready (${emailStatus.mode})`.green);
+    } else {
+      console.warn(
+        `⚠️  Email SMTP not working: ${emailStatus.message}`.yellow
+      );
+      console.warn(
+        "   Password-reset OTP will NOT send until EMAIL_USER/EMAIL_PASSWORD are fixed."
+          .yellow
+      );
+      console.warn(
+        "   Test with: node scripts/test-smtp.js your@email.com".yellow
+      );
+    }
+
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${String(PORT).bgWhite}`.yellow);
     });
