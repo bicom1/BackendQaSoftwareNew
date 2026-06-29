@@ -1,4 +1,5 @@
 const express = require("express");
+const authMiddleware = require("../middlewares/authMiddleware");
 const {
   createEvaluation,
   getEvaluations,
@@ -31,7 +32,7 @@ router.get("/queue/status", getQueueStatus);
 router.put("/:id", updateEvaluation);
 router.delete("/:id", deleteEvaluation);
 router.get("/totalevaluationcounts", totalevaluationcounts);
-router.get("/datefilterevaluation", datefilterevaluation);
+router.get("/datefilterevaluation", authMiddleware, datefilterevaluation);
 router.get("/owner/:ownerId", getEvaluationsByOwner);
 router.get("/agent/:agentName", getEvaluationsByAgentName);
 router.get("/useremail/:useremail", getEvaluationsByUseremail);

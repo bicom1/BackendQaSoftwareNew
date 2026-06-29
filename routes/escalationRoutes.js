@@ -44,7 +44,7 @@ const upload = multer({ storage });
 // CRUD routes - PUT STATIC ROUTES FIRST
 router.get("/totalescalationscounts", totalescalationscounts);
 router.get("/dailyescalationformsubmit", dailyEscalationFormSubmit);
-router.get("/datefiltereescalation", datefilterescalation);
+router.get("/datefiltereescalation", authMiddleware, datefilterescalation);
 router.get("/owner/:ownerId", getEscalationsByOwner);
 router.get("/agent/:agentName", getEscalationsByAgentName);
 router.get("/useremail/:useremail", getEscalationsByUserEmail);

@@ -1,8 +1,12 @@
 import mongoose from "mongoose";
+import { createRequire } from "module";
 import evaluationQueue from "../queues/evaluationQueue.js";
 import AsyncHandler from "express-async-handler";
 import Evaluation from "../models/Evaluation.js";
 import redisClient from "../config/redis.js";
+
+const require = createRequire(import.meta.url);
+const { mergeQueryWithQcScope } = require("../helpers/qcScope.js");
 
 const createEvaluations = AsyncHandler(async (req, res) => {
   try {
@@ -480,7 +484,11 @@ const datefilterevaluation = async (req, res) => {
       query.agentName = { $regex: new RegExp(agentName, "i") };
     }
 
-    const filteredData = await Evaluation.find(query);
+    const scopedQuery = req.user
+      ? await mergeQueryWithQcScope(req.user, query)
+      : query;
+
+    const filteredData = await Evaluation.find(scopedQuery);
 
     if (!filteredData || filteredData.length === 0) {
       return res.status(404).json({

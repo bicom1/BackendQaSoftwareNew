@@ -678,18 +678,9 @@ const registerUser = AsyncHandler(async (req, res) => {
     password: hashedPass,
     role: normalizedRole,
     loginCount: 0,
+    isOnline: false,
+    status: "offline",
   });
-
-  await User.updateOne(
-    { _id: createUser._id },
-    {
-      $set: {
-        isOnline: true,
-        status: "online",
-        lastActive: new Date(),
-      },
-    }
-  );
 
   res.status(201).json({
     success: true,
@@ -996,14 +987,64 @@ const getAllUsers = AsyncHandler(async (req, res) => {
   res.status(200).json({ success: true, count: data.length, data });
 });
 
-/** List users with isOnline=true and select presence fields */
+/** List users with isOnline=true and select presence fields — super admin only */
 const getOnlineUsers = AsyncHandler(async (req, res) => {
-  const onlineUsers = await User.find({ isOnline: true }).select(
-    "name email status lastActive"
-  );
-  res
-    .status(200)
-    .json({ success: true, count: onlineUsers.length, data: onlineUsers });
+  const actorRole = normalizeRole(req.user?.role);
+  if (!isSuperAdmin(actorRole)) {
+    return res.status(403).json({
+      success: false,
+      message: "Only super admin can view online users",
+    });
+  }
+
+  const onlineUsers = await User.find({ isOnline: true })
+    .select("name email role status lastActive loginCount createdAt isOnline")
+    .sort({ lastActive: -1 })
+    .lean();
+
+  const data = onlineUsers.map((u) => ({
+    ...u,
+    role: normalizeRole(u.role),
+  }));
+
+  res.status(200).json({ success: true, count: data.length, data });
+});
+
+/** List users by login presence — super admin only */
+const getUsersByPresence = AsyncHandler(async (req, res) => {
+  const actorRole = normalizeRole(req.user?.role);
+  if (!isSuperAdmin(actorRole)) {
+    return res.status(403).json({
+      success: false,
+      message: "Only super admin can view user presence",
+    });
+  }
+
+  const status = String(req.query.status || "active").toLowerCase();
+  if (!["active", "inactive"].includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid status. Use "active" or "inactive".',
+    });
+  }
+
+  const isOnline = status === "active";
+  const users = await User.find({ isOnline })
+    .select("name email role status lastActive loginCount createdAt isOnline")
+    .sort({ lastActive: -1 })
+    .lean();
+
+  const data = users.map((u) => ({
+    ...u,
+    role: normalizeRole(u.role),
+  }));
+
+  res.status(200).json({
+    success: true,
+    status,
+    count: data.length,
+    data,
+  });
 });
 
 /** Return total user count (scoped to visible roles for domain admins) */
@@ -1025,8 +1066,16 @@ const totalUserCount = AsyncHandler(async (req, res) => {
   res.status(200).json({ success: true, count });
 });
 
-/** Return count of online users */
+/** Return count of online users — super admin only */
 const onlineUserCount = AsyncHandler(async (req, res) => {
+  const actorRole = normalizeRole(req.user?.role);
+  if (!isSuperAdmin(actorRole)) {
+    return res.status(403).json({
+      success: false,
+      message: "Only super admin can view online user counts",
+    });
+  }
+
   const count = await User.countDocuments({ isOnline: true });
   res.status(200).json({ success: true, count });
 });
@@ -1272,9 +1321,23 @@ const patchUser = async (req, res) => {
     }
 
     let body = { ...req.body };
-    delete body.password;
     delete body._id;
     delete body.__v;
+
+    if (body.password !== undefined && body.password !== "") {
+      if (!canManage && !(isSelf && isUserManager(actorRole))) {
+        delete body.password;
+      } else if (String(body.password).length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: "Password must be at least 8 characters",
+        });
+      } else {
+        body.password = await hashPassword(body.password);
+      }
+    } else {
+      delete body.password;
+    }
 
     if (isSelf && !isUserManager(actorRole)) {
       const safe = {};
@@ -1347,6 +1410,7 @@ module.exports = {
   setUserOffline,
   getAllUsers,
   getOnlineUsers,
+  getUsersByPresence,
   totalUserCount,
   onlineUserCount,
   logout,

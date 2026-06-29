@@ -25,6 +25,7 @@ const {
   setUserOnline,
   setUserOffline,
   getOnlineUsers,
+  getUsersByPresence,
   onlineUserCount,
   getUserById,
   patchUser,
@@ -52,6 +53,7 @@ router.get("/logout", authMiddleware, logout);
 router.get("/user-submission-stats", authMiddleware, getUserSubmissionStats);
 router.get("/all-users-stats", authMiddleware, getAllUsersSubmissionStats);
 router.get("/online-users", authMiddleware, getOnlineUsers);
+router.get("/presence", authMiddleware, getUsersByPresence);
 router.get("/online-users-count", authMiddleware, onlineUserCount);
 
 // User status management routes

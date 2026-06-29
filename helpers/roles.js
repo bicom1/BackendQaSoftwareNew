@@ -66,6 +66,7 @@ const getManageableRoles = (actorRole) => {
   const actor = normalizeRole(actorRole);
   if (isSuperAdmin(actor)) return [...VALID_ROLES];
   if (isAgentAdmin(actor)) return [ROLES.AGENT_USER];
+  // QC Admin: view QC users only — Super Admin creates accounts
   if (isQcAdmin(actor)) return [ROLES.QC_USER];
   return [];
 };

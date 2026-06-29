@@ -1,5 +1,9 @@
 import AsyncHandler from "express-async-handler";
+import { createRequire } from "module";
 import Escalation from "../models/Escalation.js";
+
+const require = createRequire(import.meta.url);
+const { mergeQueryWithQcScope } = require("../helpers/qcScope.js");
 
 // Create a new escalation (merges query/body; handles optional audio)
 const createEscalation = AsyncHandler(async (req, res) => {
@@ -264,7 +268,11 @@ const datefilterescalation = AsyncHandler(async (req, res) => {
   if (teamleader) query.teamleader = { $regex: new RegExp(teamleader, "i") };
   if (agentName) query.agentName = { $regex: new RegExp(agentName, "i") };
 
-  const filteredData = await Escalation.find(query);
+  const scopedQuery = req.user
+    ? await mergeQueryWithQcScope(req.user, query)
+    : query;
+
+  const filteredData = await Escalation.find(scopedQuery);
 
   if (!filteredData.length) {
     return res.status(404).json({

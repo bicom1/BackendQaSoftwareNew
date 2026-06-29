@@ -355,37 +355,55 @@ export const agentFormSubmits = async (req, res) => {
  *  =============================== */
 export const getContentOverview = async (req, res) => {
   try {
-    const publishedCount = await Evaluation.countDocuments({ status: "published" });
+    const [totalEvaluations, totalEscalations, latestEvaluations, latestEscalations] =
+      await Promise.all([
+        Evaluation.countDocuments({}),
+        Escalation.countDocuments({}),
+        Evaluation.find({})
+          .sort({ createdAt: -1 })
+          .limit(8)
+          .populate("owner", "name")
+          .select("agentName owner status createdAt publishedAt mod leadID")
+          .lean(),
+        Escalation.find({})
+          .sort({ createdAt: -1 })
+          .limit(8)
+          .populate("owner", "name")
+          .select("agentName owner status createdAt publishedAt mod leadID")
+          .lean(),
+      ]);
 
-    const latest = await Evaluation.find({ status: "published" })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .populate("owner", "name")
-      .select("agentName owner status createdAt publishedAt mod leadID")
-      .lean();
-
-    const recentActivity = latest.map((e) => {
+    const mapActivity = (doc, action) => {
       const actorName =
-        e?.agentName ||
-        e?.owner?.name ||
-        (typeof e?.useremail === "string" ? e.useremail : null) ||
+        doc?.agentName ||
+        doc?.owner?.name ||
+        (typeof doc?.useremail === "string" ? doc.useremail : null) ||
         "Unknown";
 
       return {
-        id: String(e._id),
+        id: String(doc._id),
         actorName,
-        action: "submitted content",
-        createdAt: e?.publishedAt || e?.createdAt,
+        action,
+        createdAt: doc?.publishedAt || doc?.createdAt,
         meta: {
-          mod: e?.mod || null,
-          leadID: typeof e?.leadID === "number" ? e.leadID : null,
+          mod: doc?.mod || null,
+          leadID: typeof doc?.leadID === "number" ? doc.leadID : null,
         },
       };
-    });
+    };
+
+    const recentActivity = [
+      ...latestEvaluations.map((e) => mapActivity(e, "submitted evaluation")),
+      ...latestEscalations.map((e) => mapActivity(e, "submitted escalation")),
+    ]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 8);
 
     res.json({
       success: true,
-      publishedCount,
+      publishedCount: totalEvaluations,
+      totalEvaluations,
+      totalEscalations,
       recentActivity,
     });
   } catch (error) {
