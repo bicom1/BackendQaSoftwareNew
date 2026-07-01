@@ -36,8 +36,8 @@ app.use(helmet());
 app.use(
   cors({
     origin: [
-      "http://localhost:5173", // local frontend (development)
-      // "https://qasoftwaretesting.vercel.app", // live frontend (Vercel)
+      "http://localhost:5173", // Local frontend
+      "https://front-qa-software-new.vercel.app", // Production frontend
     ],
     credentials: true,
   })
