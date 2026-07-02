@@ -33,12 +33,24 @@ validateEnv();
 
 // Middleware
 app.use(helmet());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://front-qa-software-new.vercel.app",
+  process.env.FRONTEND_URL,
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", // Local frontend
-      "https://front-qa-software-new.vercel.app", // Production frontend
-    ],
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header (e.g. Postman, curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
