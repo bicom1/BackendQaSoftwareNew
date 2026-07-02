@@ -43,6 +43,7 @@ router.get(
 );
 
 router.get("/dailyevaluationformsubmit", dailyEvaluationFormSubmit);
+router.get("/dailyEvaluationFormSubmit", dailyEvaluationFormSubmit);
 
 // Bitrix webhook - creates draft
 router.post("/webhook/evaluations", createEvaluations);

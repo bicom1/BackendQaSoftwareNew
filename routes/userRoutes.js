@@ -49,6 +49,7 @@ router.get("/get-user/:id", authMiddleware, getUserById);
 router.get("/my-profile", authMiddleware, findMyProfile);
 router.get("/getallusers", authMiddleware, getAllUsers);
 router.get("/totalusercount", authMiddleware, totalUserCount);
+router.get("/totalUserCount", authMiddleware, totalUserCount);
 router.get("/logout", authMiddleware, logout);
 router.get("/user-submission-stats", authMiddleware, getUserSubmissionStats);
 router.get("/all-users-stats", authMiddleware, getAllUsersSubmissionStats);

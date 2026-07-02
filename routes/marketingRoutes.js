@@ -26,5 +26,6 @@ router.put("/marketing/:id", authMiddleware, updateMarketing);
 router.delete("/marketing/:id", authMiddleware, deleteMarketing);
 router.get("/totalmarketingcounts", totalmarketingcounts);
 router.get("/dailymarketingformsubmit", dailyMarketingFormSubmit);
+router.get("/dailyMarketingFormSubmit", dailyMarketingFormSubmit);
 
 module.exports = router;

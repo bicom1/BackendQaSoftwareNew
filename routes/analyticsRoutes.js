@@ -18,6 +18,7 @@ router.get('/overview', getOverviewAnalytics);
 router.get("/content-overview", getContentOverview);
 router.get('/getEvaluationAnalytics', getEvaluationAnalytics);
 router.get('/getEscalationAnalytics', getEscalationAnalytics);
+router.get('/getescalationAnalytics', getEscalationAnalytics);
 router.get('/getMarketingAnalytics', getMarketingAnalytics);
 router.get('/agent-form-submits', agentFormSubmits);
 router.get('/weekly-stats', getWeeklyStats);
