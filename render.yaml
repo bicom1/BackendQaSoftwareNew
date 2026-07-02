@@ -1,3 +1,5 @@
+# Deploy from repo: https://github.com/bicom1/BackendQaSoftwareNew
+# Render Dashboard → New Web Service → connect this repo (root = repo root, not monorepo parent).
 services:
   - type: web
     name: backendqasoftware

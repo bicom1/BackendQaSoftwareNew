@@ -19,6 +19,7 @@ const qcDashboardRoutes = require("./routes/qcDashboardRoutes");
 const { validateEnv } = require("./config/env");
 const connectDB = require("./config/db");
 const redisClient = require("./config/redis");
+const connectRedis = redisClient.connectRedis;
 
 // Middleware
 const requestLogger = require("./middlewares/logger");
@@ -37,7 +38,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://front-qa-software-new.vercel.app",
   process.env.FRONTEND_URL,
-];
+].filter(Boolean);
 
 app.use(
   cors({
@@ -103,7 +104,9 @@ process.on("SIGINT", async () => {
   console.log("\n🛑 Shutting down gracefully...".yellow);
   try {
     await mongoose.connection.close();
-    await redisClient.quit();
+    if (redisClient.isOpen) {
+      await redisClient.quit();
+    }
     console.log("✅ All connections closed. Goodbye!".green);
     process.exit(0);
   } catch (err) {
@@ -120,39 +123,50 @@ process.on("unhandledRejection", (reason, promise) => {
 // Catch uncaught exceptions
 process.on("uncaughtException", (err) => {
   console.error("💣 Uncaught Exception:", err);
-  process.exit(1); // safest option to avoid unknown state
-});
-
-(async function start() {
-  try {
-    await connectDB();
-    await redisClient.connect();
-    console.log("✅ MongoDB & Redis connected".green);
-
-    const { verifyEmailConnection } = require("./services/emailService");
-    const emailStatus = await verifyEmailConnection();
-    if (emailStatus.ok) {
-      console.log(`✅ Email SMTP ready (${emailStatus.mode})`.green);
-    } else {
-      console.warn(
-        `⚠️  Email SMTP not working: ${emailStatus.message}`.yellow
-      );
-      console.warn(
-        "   Password-reset OTP will NOT send until EMAIL_USER/EMAIL_PASSWORD are fixed."
-          .yellow
-      );
-      console.warn(
-        "   Test with: node scripts/test-smtp.js your@email.com".yellow
-      );
-    }
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${String(PORT).bgWhite}`.yellow);
-    });
-  } catch (err) {
-    console.error("❌ Failed to initialize services (MongoDB or Redis):", err);
+  if (!process.env.VERCEL) {
     process.exit(1);
   }
-})();
+});
 
-module.exports = { app, redisClient };
+let initPromise = null;
+
+async function initializeApp() {
+  if (!initPromise) {
+    initPromise = (async () => {
+      await connectDB();
+      const redisOk = await connectRedis();
+      console.log(
+        redisOk
+          ? "✅ MongoDB & Redis connected".green
+          : "✅ MongoDB connected (Redis unavailable)".green
+      );
+
+      const { verifyEmailConnection } = require("./services/emailService");
+      const emailStatus = await verifyEmailConnection();
+      if (emailStatus.ok) {
+        console.log(`✅ Email SMTP ready (${emailStatus.mode})`.green);
+      } else {
+        console.warn(
+          `⚠️  Email SMTP not working: ${emailStatus.message}`.yellow
+        );
+      }
+    })();
+  }
+
+  return initPromise;
+}
+
+if (!process.env.VERCEL) {
+  initializeApp()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${String(PORT).bgWhite}`.yellow);
+      });
+    })
+    .catch((err) => {
+      console.error("❌ Failed to initialize services (MongoDB):", err);
+      process.exit(1);
+    });
+}
+
+module.exports = { app, redisClient, initializeApp };
