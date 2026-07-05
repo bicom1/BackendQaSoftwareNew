@@ -1,5 +1,7 @@
 # Deploy from repo: https://github.com/bicom1/BackendQaSoftwareNew
-# Render Dashboard → New Web Service → connect this repo (root = repo root, not monorepo parent).
+# Render Dashboard → Environment → MONGO_URL (same value as BackendQaSoftware/.env)
+# NEW cluster: mongodb+srv://qcdev_db_user:...@cluster0.3f5zxhd.mongodb.net/bicc?retryWrites=true&w=majority
+# OLD cluster (commented): mongodb+srv://qcdev:...@bic.vifauen.mongodb.net/bicc?retryWrites=true&w=majority
 services:
   - type: web
     name: backendqasoftware

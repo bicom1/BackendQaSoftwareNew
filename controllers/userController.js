@@ -792,7 +792,7 @@ const loginUser = AsyncHandler(async (req, res) => {
       .json({ success: false, message: "Invalid credentials" });
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await comparePassword(password, user.password);
   if (!isMatch) {
     if (process.env.NODE_ENV !== "production") {
       console.log(
