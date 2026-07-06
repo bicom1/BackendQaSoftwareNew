@@ -300,21 +300,20 @@ const deleteInvite = AsyncHandler(async (req, res) => {
   assertCanManageInvites(normalizeRole(req.user?.role), invite.role);
   assertInviteOwnership(req, invite);
 
-  if (invite.status !== "pending") {
-    return res.status(400).json({
-      success: false,
-      message: `Only pending invites can be deleted`,
-    });
+  if (invite.status === "pending" || invite.status === "expired") {
+    if (invite.userId) {
+      await User.deleteOne({ _id: invite.userId, invitePending: true });
+    }
   }
 
-  if (invite.userId) {
-    await User.deleteOne({ _id: invite.userId, invitePending: true });
-  }
   await Invite.deleteOne({ _id: invite._id });
 
   res.json({
     success: true,
-    message: "Invite and pending user deleted",
+    message:
+      invite.status === "accepted"
+        ? "Accepted invite record removed"
+        : "Invite and pending user deleted",
   });
 });
 
