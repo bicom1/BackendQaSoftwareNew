@@ -34,6 +34,15 @@ const {
 } = require("../controllers/userController");
 const authMiddleware = require("../middlewares/authMiddleware");
 const optionalRegisterAuth = require("../middlewares/optionalRegisterAuth");
+const {
+  invitedUsersCount,
+  getInvitedUsers,
+  sendInvite,
+  resendInvite,
+  deleteInvite,
+  validateInviteToken,
+  acceptInvite,
+} = require("../controllers/inviteController");
 const router = express.Router();
 
 // Public routes
@@ -56,6 +65,17 @@ router.get("/all-users-stats", authMiddleware, getAllUsersSubmissionStats);
 router.get("/online-users", authMiddleware, getOnlineUsers);
 router.get("/presence", authMiddleware, getUsersByPresence);
 router.get("/online-users-count", authMiddleware, onlineUserCount);
+
+// Invited users (admin managers)
+router.get("/invites/count", authMiddleware, invitedUsersCount);
+router.get("/invites", authMiddleware, getInvitedUsers);
+router.post("/invites", authMiddleware, sendInvite);
+router.post("/invites/:inviteId/resend", authMiddleware, resendInvite);
+router.delete("/invites/:inviteId", authMiddleware, deleteInvite);
+
+// Public invite accept (after /invites/count and /invites list routes)
+router.get("/invites/:token", validateInviteToken);
+router.post("/invites/:token/accept", acceptInvite);
 
 // User status management routes
 router.put("/update-user/:id", authMiddleware, updateUser);

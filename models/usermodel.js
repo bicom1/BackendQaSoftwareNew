@@ -60,6 +60,10 @@ const usersSchema = new mongoose.Schema(
       enum: ["online", "offline", "away", "busy"],
       default: "offline",
     },
+    invitePending: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

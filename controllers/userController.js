@@ -792,6 +792,14 @@ const loginUser = AsyncHandler(async (req, res) => {
       .json({ success: false, message: "Invalid credentials" });
   }
 
+  if (user.invitePending) {
+    return res.status(403).json({
+      success: false,
+      message:
+        "Please activate your account using the invite link sent to your email.",
+    });
+  }
+
   const isMatch = await comparePassword(password, user.password);
   if (!isMatch) {
     if (process.env.NODE_ENV !== "production") {
@@ -959,7 +967,10 @@ const getAllUsers = AsyncHandler(async (req, res) => {
     });
   }
 
-  const query = { role: buildVisibleRolesFilter(actorRole) };
+  const query = {
+    role: buildVisibleRolesFilter(actorRole),
+    invitePending: { $ne: true },
+  };
   const { role: roleFilter } = req.query;
 
   if (roleFilter) {
@@ -997,7 +1008,7 @@ const getOnlineUsers = AsyncHandler(async (req, res) => {
     });
   }
 
-  const onlineUsers = await User.find({ isOnline: true })
+  const onlineUsers = await User.find({ isOnline: true, invitePending: { $ne: true } })
     .select("name email role status lastActive loginCount createdAt isOnline")
     .sort({ lastActive: -1 })
     .lean();
@@ -1029,7 +1040,7 @@ const getUsersByPresence = AsyncHandler(async (req, res) => {
   }
 
   const isOnline = status === "active";
-  const users = await User.find({ isOnline })
+  const users = await User.find({ isOnline, invitePending: { $ne: true } })
     .select("name email role status lastActive loginCount createdAt isOnline")
     .sort({ lastActive: -1 })
     .lean();
@@ -1060,8 +1071,11 @@ const totalUserCount = AsyncHandler(async (req, res) => {
   }
 
   const count = isSuperAdmin(actorRole)
-    ? await User.countDocuments()
-    : await User.countDocuments({ role: buildVisibleRolesFilter(actorRole) });
+    ? await User.countDocuments({ invitePending: { $ne: true } })
+    : await User.countDocuments({
+        role: buildVisibleRolesFilter(actorRole),
+        invitePending: { $ne: true },
+      });
 
   res.status(200).json({ success: true, count });
 });
@@ -1076,7 +1090,10 @@ const onlineUserCount = AsyncHandler(async (req, res) => {
     });
   }
 
-  const count = await User.countDocuments({ isOnline: true });
+  const count = await User.countDocuments({
+    isOnline: true,
+    invitePending: { $ne: true },
+  });
   res.status(200).json({ success: true, count });
 });
 

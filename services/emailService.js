@@ -156,3 +156,59 @@ exports.sendOtpEmail = async (email, otp, expiresInSeconds = 600) => {
   await sendWithTransporters(mailOptions);
   return { delivered: true, mode: "smtp" };
 };
+
+/**
+ * Send user invite email with signup link.
+ */
+exports.sendInviteEmail = async (email, inviteUrl, role) => {
+  const recipient = email.trim().toLowerCase();
+  const roleLabel = role.replace(/_/g, " ");
+
+  if (emailConfig.devLogOnly) {
+    console.log("\n========================================");
+    console.log("[INVITE EMAIL — DEV LOG]");
+    console.log(`  To:   ${recipient}`);
+    console.log(`  Role: ${roleLabel}`);
+    console.log(`  Link: ${inviteUrl}`);
+    console.log("========================================\n");
+    return { delivered: true, mode: "dev-log" };
+  }
+
+  assertEmailConfigured();
+
+  const fromAddress =
+    process.env.EMAIL_FROM?.trim() ||
+    `"BICOMM QA" <${emailConfig.emailUser}>`;
+
+  const mailOptions = {
+    from: fromAddress.includes("<") ? fromAddress : `"BICOMM QA" <${fromAddress}>`,
+    to: recipient,
+    subject: "You're invited to BICOMM QA",
+    text: [
+      "You have been invited to join BICOMM QA.",
+      "",
+      `Role: ${roleLabel}`,
+      "",
+      "Click the link below to set your password and activate your account:",
+      inviteUrl,
+      "",
+      "This link expires in 7 days.",
+      "If you did not expect this email, you can ignore it.",
+    ].join("\n"),
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px;">
+        <h2 style="color:#2575fc;margin-top:0;">You're invited!</h2>
+        <p>You have been invited to join <strong>BICOMM QA</strong> as <strong>${roleLabel}</strong>.</p>
+        <p>Click the button below to set your password and activate your account:</p>
+        <p style="text-align:center;margin:28px 0;">
+          <a href="${inviteUrl}" style="background:linear-gradient(90deg,#2575fc,#6a11cb);color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Accept Invite</a>
+        </p>
+        <p style="color:#64748b;font-size:13px;">Or copy this link: ${inviteUrl}</p>
+        <p style="color:#64748b;font-size:13px;">This link expires in 7 days.</p>
+      </div>
+    `,
+  };
+
+  await sendWithTransporters(mailOptions);
+  return { delivered: true, mode: "smtp" };
+};
