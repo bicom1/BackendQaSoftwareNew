@@ -7,6 +7,7 @@ import redisClient from "../config/redis.js";
 
 const require = createRequire(import.meta.url);
 const { mergeQueryWithQcScope } = require("../helpers/qcScope.js");
+const { applyLowScoreTeamLeadRouting } = require("../helpers/teamLeadReview.js");
 
 const createEvaluations = AsyncHandler(async (req, res) => {
   try {
@@ -59,13 +60,18 @@ const createEvaluationsFromFrontend = AsyncHandler(async (req, res) => {
     payload.publishedAt = new Date();
     payload.bitrixSubmitted = false;
 
-    // Save to DB as published
-    const doc = await Evaluation.create(payload);
+    const routedPayload = await applyLowScoreTeamLeadRouting(payload);
+    const doc = await Evaluation.create(routedPayload);
+
+    const routed = Boolean(doc.teamLeadReview?.required);
 
     res.status(201).json({
       success: true,
-      message: "Evaluation published successfully",
+      message: routed
+        ? "Evaluation published and sent to team lead for low-score review"
+        : "Evaluation published successfully",
       data: doc,
+      teamLeadReviewRouted: routed,
     });
   } catch (err) {
     console.error("Frontend submission error:", err.message);

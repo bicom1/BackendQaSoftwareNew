@@ -78,6 +78,51 @@ const escalationSchema = new mongoose.Schema(
     },
     publishedAt: { type: Date },
     bitrixSubmitted: { type: Boolean, default: false },
+    submittedByRole: {
+      type: String,
+      default: "",
+    },
+    teamLeadReview: {
+      required: { type: Boolean, default: false },
+      status: {
+        type: String,
+        enum: ["pending", "awaiting_qc_response", "discussed", "resolved"],
+        default: "pending",
+      },
+      routedAt: { type: Date },
+      teamLeaderName: { type: String, default: "" },
+      teamLeaderEmail: { type: String, default: "" },
+      lowScoreThreshold: { type: mongoose.Schema.Types.Mixed, default: 40 },
+      threads: [
+        {
+          question: { type: String, required: true, trim: true },
+          askedByName: { type: String, default: "" },
+          askedByEmail: { type: String, default: "" },
+          askedAt: { type: Date, default: Date.now },
+          answer: { type: String, default: "" },
+          answeredByName: { type: String, default: "" },
+          answeredByEmail: { type: String, default: "" },
+          answeredAt: { type: Date },
+        },
+      ],
+    },
+    flaggedReview: {
+      required: { type: Boolean, default: false },
+      flaggedAt: { type: Date },
+      issueSummary: { type: String, default: "" },
+      status: {
+        type: String,
+        enum: ["pending", "forwarded_to_qc", "approved", "rejected"],
+        default: "pending",
+      },
+      forwardedAt: { type: Date },
+      forwardedByName: { type: String, default: "" },
+      forwardedByEmail: { type: String, default: "" },
+      qcNote: { type: String, default: "" },
+      qcResolvedAt: { type: Date },
+      qcResolvedByName: { type: String, default: "" },
+      qcResolvedByEmail: { type: String, default: "" },
+    },
   },
   { timestamps: true }
 );

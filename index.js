@@ -232,6 +232,8 @@ app.use("/api/departments", require("./routes/departmentRoutes"));
 app.use("/api/analytics", require("./routes/analyticsRoutes"));
 app.use("/api/agents", require("./routes/agentsRoutes"));
 app.use("/api/feedback", require("./routes/feedbackRoutes"));
+app.use("/api/team-lead-reviews", require("./routes/teamLeadReviewRoutes"));
+app.use("/api/flagged-reviews", require("./routes/flaggedReviewRoutes"));
 app.use("/api", qcDashboardRoutes);
 // (removed the stray `app.use()` with no args — that was the crash)
 

@@ -14,8 +14,13 @@ const {
   fillLastNDays,
   resolveSubmitterName,
   buildSingleUserScope,
+  resolveUserScopeById,
   applyQueryFilters,
 } = require("../helpers/qcScope");
+const {
+  purgeExpiredFlaggedReviews,
+  getFlaggedRetentionCutoff,
+} = require("../helpers/flaggedReview");
 
 const dailyAggregate = (collection, match, days = 5) =>
   collection.aggregate([
@@ -268,6 +273,7 @@ const getQcModuleForms = async (req, res) => {
       endDate = "",
       page = "1",
       limit = "10",
+      lowScoreOnly = "",
     } = req.query;
 
     const formType = ["evaluations", "escalations", "marketing"].includes(type)
@@ -277,6 +283,8 @@ const getQcModuleForms = async (req, res) => {
     const limitNum = Math.min(1000, Math.max(1, parseInt(limit, 10) || 10));
     const skip = (pageNum - 1) * limitNum;
 
+    await purgeExpiredFlaggedReviews();
+
     const { scope, qcUsers, match: scopeMatch } =
       await resolveQcSubmissionScope(actor);
     const isAdmin =
@@ -284,9 +292,9 @@ const getQcModuleForms = async (req, res) => {
 
     let scopeForQuery = scopeMatch;
     if (userId && isAdmin) {
-      const target = qcUsers.find((u) => String(u._id) === String(userId));
-      if (target) {
-        scopeForQuery = buildSingleUserScope(target);
+      const userScope = await resolveUserScopeById(userId, qcUsers);
+      if (userScope) {
+        scopeForQuery = userScope;
       }
     }
 
@@ -298,6 +306,24 @@ const getQcModuleForms = async (req, res) => {
       search,
       searchField,
     });
+
+    if (lowScoreOnly === "true" || lowScoreOnly === "1") {
+      query["teamLeadReview.required"] = true;
+      query["teamLeadReview.status"] = { $ne: "resolved" };
+    }
+
+    const forwardedOnly = req.query.forwardedOnly;
+    if (forwardedOnly === "true" || forwardedOnly === "1") {
+      query["flaggedReview.status"] = "forwarded_to_qc";
+    }
+
+    const flaggedStatus = (req.query.flaggedStatus || "").trim();
+    if (flaggedStatus === "approved" || flaggedStatus === "rejected") {
+      query["flaggedReview.status"] = flaggedStatus;
+      query["flaggedReview.qcResolvedAt"] = { $gte: getFlaggedRetentionCutoff() };
+    } else if (flaggedStatus === "forwarded_to_qc") {
+      query["flaggedReview.status"] = "forwarded_to_qc";
+    }
 
     const [total, rows] = await Promise.all([
       Model.countDocuments(query),

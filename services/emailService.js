@@ -212,3 +212,66 @@ exports.sendInviteEmail = async (email, inviteUrl, role) => {
   await sendWithTransporters(mailOptions);
   return { delivered: true, mode: "smtp" };
 };
+
+/**
+ * Send welcome email when an admin creates a new user account.
+ */
+exports.sendWelcomeEmail = async (email, name, role, temporaryPassword) => {
+  const recipient = email.trim().toLowerCase();
+  const roleLabel = String(role || "user").replace(/_/g, " ");
+  const loginUrl =
+    process.env.FRONTEND_URL?.trim() || "http://localhost:5173";
+
+  if (emailConfig.devLogOnly) {
+    console.log("\n========================================");
+    console.log("[WELCOME EMAIL — DEV LOG]");
+    console.log(`  To:       ${recipient}`);
+    console.log(`  Name:     ${name}`);
+    console.log(`  Role:     ${roleLabel}`);
+    console.log(`  Password: ${temporaryPassword}`);
+    console.log(`  Login:    ${loginUrl}`);
+    console.log("========================================\n");
+    return { delivered: true, mode: "dev-log" };
+  }
+
+  assertEmailConfigured();
+
+  const fromAddress =
+    process.env.EMAIL_FROM?.trim() ||
+    `"BICOMM QA" <${emailConfig.emailUser}>`;
+
+  const mailOptions = {
+    from: fromAddress.includes("<") ? fromAddress : `"BICOMM QA" <${fromAddress}>`,
+    to: recipient,
+    subject: "Your BICOMM QA account has been created",
+    text: [
+      `Hello ${name},`,
+      "",
+      "An administrator has created your BICOMM QA account.",
+      "",
+      `Role: ${roleLabel}`,
+      `Email: ${recipient}`,
+      `Temporary password: ${temporaryPassword}`,
+      "",
+      `Sign in at: ${loginUrl}`,
+      "",
+      "Please change your password after your first login.",
+    ].join("\n"),
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px;">
+        <h2 style="color:#2575fc;margin-top:0;">Welcome to BICOMM QA</h2>
+        <p>Hello <strong>${name}</strong>,</p>
+        <p>Your account has been created as <strong>${roleLabel}</strong>.</p>
+        <p><strong>Email:</strong> ${recipient}<br/>
+        <strong>Temporary password:</strong> ${temporaryPassword}</p>
+        <p style="text-align:center;margin:28px 0;">
+          <a href="${loginUrl}" style="background:linear-gradient(90deg,#2575fc,#6a11cb);color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Sign in</a>
+        </p>
+        <p style="color:#64748b;font-size:13px;">Please change your password after your first login.</p>
+      </div>
+    `,
+  };
+
+  await sendWithTransporters(mailOptions);
+  return { delivered: true, mode: "smtp" };
+};

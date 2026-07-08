@@ -1,4 +1,26 @@
 const TeamLeader = require("../models/TeamLeader");
+const { findTeamLeadersByEmail } = require("../helpers/teamLeadReview");
+
+const getMyTeamLeader = async (req, res) => {
+  try {
+    const email = (req.user?.email || "").trim();
+    if (!email) {
+      return res.json({ success: true, data: null, isTeamLead: false });
+    }
+    const leaders = await findTeamLeadersByEmail(email);
+    res.json({
+      success: true,
+      data: leaders,
+      isTeamLead: leaders.length > 0,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
+  }
+};
 
 const addLeader = async (req, res) => {
   try {
@@ -96,4 +118,5 @@ module.exports = {
   getLeaderById,
   updateLeader,
   deleteLeader,
+  getMyTeamLeader,
 };

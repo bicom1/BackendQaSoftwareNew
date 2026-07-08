@@ -5,7 +5,7 @@ const {
   normalizeRole,
   isQcAdmin,
   isSuperAdmin,
-  buildVisibleRolesFilter,
+  getRoleQueryVariants,
 } = require("./roles");
 
 /** Same published logic as evaluation/escalation list APIs */
@@ -46,17 +46,71 @@ const ownerMatch = (userId) => {
 };
 
 const buildSingleUserScope = (user) => {
-  const parts = [
-    ownerMatch(user._id),
-    emailMatch(user.email),
-    nameMatch(user.name),
-  ].filter(Boolean);
+  if (!user) return { _id: null };
+
+  const parts = [];
+  const userId = user._id || user.id;
+  const email = (user.email || "").trim();
+  const name = (user.name || "").trim();
+
+  if (userId) {
+    const idStr = String(userId);
+    const ownerClauses = [{ owner: userId }, { owner: idStr }];
+    if (mongoose.Types.ObjectId.isValid(idStr)) {
+      ownerClauses.push({
+        owner: new mongoose.Types.ObjectId(idStr),
+      });
+    }
+    parts.push(
+      ownerClauses.length === 1 ? ownerClauses[0] : { $or: ownerClauses }
+    );
+  }
+
+  const emailClause = emailMatch(email);
+  if (emailClause) parts.push(emailClause);
+
+  if (name) {
+    const nameRx = new RegExp(escapeRegex(name), "i");
+    parts.push({ evaluatedby: { $regex: nameRx } });
+    const firstName = name.split(/\s+/)[0];
+    if (firstName && firstName.length > 1 && firstName.toLowerCase() !== name.toLowerCase()) {
+      parts.push({
+        evaluatedby: {
+          $regex: new RegExp(`^${escapeRegex(firstName)}`, "i"),
+        },
+      });
+    }
+  }
+
   if (!parts.length) return { _id: null };
   return parts.length === 1 ? parts[0] : { $or: parts };
 };
 
+const resolveUserScopeById = async (userId, qcUsers = []) => {
+  const id = String(userId || "").trim();
+  if (!id) return null;
+
+  let target = qcUsers.find((u) => String(u._id) === id);
+  if (!target) {
+    target = await User.findById(id).select("_id name email role").lean();
+  }
+
+  if (!target) return { _id: null };
+  return buildSingleUserScope(target);
+};
+
 const getQcTeamUsers = async () => {
-  return User.find({ role: buildVisibleRolesFilter(ROLES.QC_ADMIN) })
+  const variants = new Set();
+  [ROLES.QC_USER, ROLES.QC_ADMIN].forEach((r) => {
+    getRoleQueryVariants(r).forEach((v) => variants.add(v));
+  });
+  return User.find({
+    role: {
+      $in: [...variants].map(
+        (v) => new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")
+      ),
+    },
+  })
     .select("_id name email role")
     .lean();
 };
@@ -66,17 +120,10 @@ const resolveQcSubmissionScope = async (actor) => {
 
   if (isSuperAdmin(role)) {
     const qcUsers = await getQcTeamUsers();
-    const ors = qcUsers
-      .flatMap((u) => [
-        ownerMatch(u._id),
-        emailMatch(u.email),
-        nameMatch(u.name),
-      ])
-      .filter(Boolean);
     return {
-      scope: "team",
+      scope: "all",
       qcUsers,
-      match: ors.length ? { $or: ors } : {},
+      match: {},
     };
   }
 
@@ -267,6 +314,7 @@ module.exports = {
   getQcTeamUsers,
   resolveSubmitterName,
   buildSingleUserScope,
+  resolveUserScopeById,
   applyQueryFilters,
   mergeQueryWithQcScope,
 };

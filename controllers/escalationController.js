@@ -4,6 +4,9 @@ import Escalation from "../models/Escalation.js";
 
 const require = createRequire(import.meta.url);
 const { mergeQueryWithQcScope } = require("../helpers/qcScope.js");
+const {
+  applyEscalationTeamLeadRouting,
+} = require("../helpers/teamLeadReview.js");
 
 // Create a new escalation (merges query/body; handles optional audio)
 const createEscalation = AsyncHandler(async (req, res) => {
@@ -57,13 +60,18 @@ const createEscalationFromFrontend = AsyncHandler(async (req, res) => {
     payload.publishedAt = new Date();
     payload.bitrixSubmitted = false;
 
-    // Save to DB as published
-    const doc = await Escalation.create(payload);
+    const routedPayload = await applyEscalationTeamLeadRouting(payload);
+    const doc = await Escalation.create(routedPayload);
+
+    const routed = Boolean(doc.teamLeadReview?.required);
 
     res.status(201).json({
       success: true,
-      message: "Escalation published successfully",
+      message: routed
+        ? "Escalation published and sent to team lead for review"
+        : "Escalation published successfully",
       data: doc,
+      teamLeadReviewRouted: routed,
     });
   } catch (err) {
     console.error("Frontend submission error:", err.message);

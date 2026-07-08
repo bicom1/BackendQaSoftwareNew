@@ -602,6 +602,7 @@ const AsyncHandler = require("express-async-handler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/usermodel");
+const { sendWelcomeEmail } = require("../services/emailService");
 const {
   ROLES,
   VALID_ROLES,
@@ -681,6 +682,17 @@ const registerUser = AsyncHandler(async (req, res) => {
     isOnline: false,
     status: "offline",
   });
+
+  try {
+    await sendWelcomeEmail(
+      normalizedEmail,
+      createUser.name,
+      normalizedRole,
+      password
+    );
+  } catch (emailErr) {
+    console.error("Welcome email failed:", emailErr.message);
+  }
 
   res.status(201).json({
     success: true,
